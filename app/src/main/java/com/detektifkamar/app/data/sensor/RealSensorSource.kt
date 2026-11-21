@@ -52,6 +52,7 @@ class RealSensorSource(context: Context) : SensorSource {
                 val x = values[0]
                 val y = values[1]
                 val z = values[2]
+                if (!x.isFinite() || !y.isFinite() || !z.isFinite()) return
                 val magnitude = sqrt(x * x + y * y + z * z)
 
                 trySend(
@@ -80,7 +81,17 @@ class RealSensorSource(context: Context) : SensorSource {
 
     override fun getAccelerometerFlow(): Flow<RawAccelerometerData> = callbackFlow {
         if (accelerometerSensor == null) {
-            close()
+            trySend(
+                RawAccelerometerData(
+                    x = 0f,
+                    y = 0f,
+                    z = 9.81f,
+                    magnitude = 9.81f,
+                    tiltDeg = 0f,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+            awaitClose {}
             return@callbackFlow
         }
 
@@ -92,6 +103,7 @@ class RealSensorSource(context: Context) : SensorSource {
                 val x = values[0]
                 val y = values[1]
                 val z = values[2]
+                if (!x.isFinite() || !y.isFinite() || !z.isFinite()) return
                 val magnitude = sqrt(x * x + y * y + z * z)
 
                 // Hitung kemiringan kasar sumbu Z terhadap magnitudo gravitasi
@@ -133,7 +145,9 @@ class RealSensorSource(context: Context) : SensorSource {
             override fun onSensorChanged(event: SensorEvent?) {
                 if (event == null || event.sensor.type != Sensor.TYPE_LIGHT) return
                 val values = event.values.copyOf()
-                trySend(values[0])
+                val lux = values[0]
+                if (!lux.isFinite()) return
+                trySend(lux)
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

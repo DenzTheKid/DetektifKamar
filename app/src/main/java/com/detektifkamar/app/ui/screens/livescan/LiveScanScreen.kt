@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +29,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
@@ -40,6 +44,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -47,7 +52,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,7 +72,6 @@ import com.detektifkamar.app.ui.theme.PlexMonoFontFamily
 import com.detektifkamar.app.ui.theme.PlexSansFontFamily
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveScanScreen(
     viewModel: LiveScanViewModel,
@@ -70,281 +79,386 @@ fun LiveScanScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val colors = DetectiveTheme.colors
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.isPointSavedSuccess) {
         if (uiState.isPointSavedSuccess) {
             snackbarHostState.showSnackbar("Titik ukur berhasil disimpan ke ruangan!")
+            viewModel.onSavedSnackbarShown()
         }
     }
 
+    LiveScanContent(
+        uiState = uiState,
+        snackbarHostState = snackbarHostState,
+        onToggleUnit = viewModel::toggleUnit,
+        onToggleFreeze = viewModel::toggleFreeze,
+        onResetStatistics = viewModel::resetStatistics,
+        onOpenSaveModal = viewModel::openSaveModal,
+        onDismissSaveModal = viewModel::closeSaveModal,
+        onSelectRoom = viewModel::onRoomSelected,
+        onNotesChange = viewModel::onNotesInputChanged,
+        onConfirmSave = viewModel::savePointToRoom,
+        onCreateRoom = {
+            viewModel.closeSaveModal()
+            onNavigateToCreateRoom()
+        },
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LiveScanContent(
+    uiState: LiveScanUiState,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onToggleUnit: () -> Unit = {},
+    onToggleFreeze: () -> Unit = {},
+    onResetStatistics: () -> Unit = {},
+    onOpenSaveModal: () -> Unit = {},
+    onDismissSaveModal: () -> Unit = {},
+    onSelectRoom: (Long) -> Unit = {},
+    onNotesChange: (String) -> Unit = {},
+    onConfirmSave: () -> Unit = {},
+    onCreateRoom: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val colors = DetectiveTheme.colors
+    val isCompactWidth = LocalConfiguration.current.screenWidthDp < 380
+    val density = LocalDensity.current
+    val topBarDensity = Density(
+        density = density.density,
+        fontScale = density.fontScale.coerceAtMost(1.1f)
+    )
+
     if (!uiState.sensorState.isMagnetometerAvailable) {
-        SensorUnavailableScreen(colors = colors)
+        SensorUnavailableScreen(colors = colors, modifier = modifier)
         return
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.paperBackground,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = "PINDAI LANGSUNG",
-                            fontFamily = PlexMonoFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            letterSpacing = 1.2.sp,
-                            color = colors.inkText
-                        )
-                        StatusStampBadge(status = uiState.sensorState.status)
-                    }
-                },
-                actions = {
-                    // Tombol Ganti Satuan (µT -> mT -> G)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(colors.accentCyan.copy(alpha = 0.15f))
-                            .clickable { viewModel.toggleUnit() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = uiState.displayUnit.symbol,
-                            fontFamily = PlexMonoFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = colors.accentCyan
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Tombol Bekukan (Freeze)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(
-                                if (uiState.isFrozen) colors.warningAmber else colors.surfaceSecondary
+            CompositionLocalProvider(LocalDensity provides topBarDensity) {
+                TopAppBar(
+                    title = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "PINDAI LANGSUNG",
+                                fontFamily = PlexMonoFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = if (isCompactWidth) 11.sp else 13.sp,
+                                lineHeight = if (isCompactWidth) 13.sp else 16.sp,
+                                letterSpacing = if (isCompactWidth) 0.2.sp else 0.7.sp,
+                                maxLines = if (isCompactWidth) 2 else 1,
+                                softWrap = isCompactWidth,
+                                overflow = TextOverflow.Ellipsis,
+                                color = colors.inkText,
+                                modifier = Modifier.weight(1f)
                             )
-                            .clickable { viewModel.toggleFreeze() }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            StatusStampBadge(
+                                status = uiState.sensorState.status,
+                                compact = true,
+                                modifier = Modifier
+                                    .widthIn(min = 100.dp)
+                                    .testTag("live_scan_status_badge")
+                            )
+                        }
+                    },
+                    actions = {
+                        // Tombol Ganti Satuan (µT -> mT -> G)
+                        Box(
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 38.dp, minHeight = 36.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(colors.accentCyan.copy(alpha = 0.15f))
+                                .clickable(onClick = onToggleUnit)
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                .testTag("btn_toggle_unit"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = uiState.displayUnit.symbol,
+                                fontFamily = PlexMonoFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                color = colors.accentCyan
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Tombol Bekukan (Freeze) dengan teks gelap berkontras tinggi di atas kuning amber
+                        Box(
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 70.dp, minHeight = 36.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (uiState.isFrozen) colors.warningAmber else colors.surfaceSecondary
+                                )
+                                .clickable(onClick = onToggleFreeze)
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                .testTag("btn_toggle_freeze"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (uiState.isFrozen) "TERTAHAN" else "BEKUKAN",
+                                fontFamily = PlexMonoFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                color = if (uiState.isFrozen) Color(0xFF0E1116) else colors.inkText
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = colors.paperBackground
+                    )
+                )
+            }
+        },
+        bottomBar = {
+            // Disematkan di bottomBar agar selalu terlihat & bisa diklik di semua status/tinggi layar
+            Surface(
+                color = colors.paperBackground,
+                tonalElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(
+                        color = colors.borderOutline.copy(alpha = 0.6f),
+                        thickness = 1.dp
+                    )
+                    Button(
+                        onClick = onOpenSaveModal,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .height(50.dp)
+                            .testTag("btn_save_point"),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.accentCyan,
+                            contentColor = if (colors.isDark) colors.paperBackground else Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (uiState.isFrozen) "TERTAHAN" else "BEKUKAN",
-                            fontFamily = PlexMonoFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            color = if (uiState.isFrozen) colors.paperBackground else colors.inkText
+                            text = "Simpan ke Titik Ruangan",
+                            fontFamily = PlexSansFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = colors.paperBackground
-                )
-            )
+                }
+            }
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 1. Peringatan Kemiringan (TiltDetector)
+            // 1. Slot Tetap Peringatan Kemiringan (0 dp pergeseran vertikal saat status berubah)
             TiltWarningBanner(
                 isTilted = uiState.sensorState.tiltState.isTilted,
-                tiltAngleDeg = uiState.sensorState.tiltState.tiltAngle
-            )
-
-            // 2. Gauge Analog Melengkung 240° dengan Nilai Monospace Besar
-            DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    ArcGauge240(
-                        valueUt = uiState.sensorState.magneticUt,
-                        displayUnit = uiState.displayUnit,
-                        sensorMaxRangeUt = uiState.sensorState.sensorMaxRangeUt,
-                        status = uiState.sensorState.status
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Penjelasan Fisika Dipol Singkat
-                    Text(
-                        text = "Fluks magnet meluruh drastis sebanding 1/r³ terhadap jarak.",
-                        fontFamily = PlexSansFontFamily,
-                        fontSize = 11.sp,
-                        color = colors.textMuted
-                    )
-                }
-            }
-
-            // 3. Komponen Vektor Sumbu X, Y, Z
-            DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "KOMPONEN VEKTOR MEDAN (X, Y, Z)",
-                            fontFamily = PlexSansFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.sp,
-                            letterSpacing = 1.2.sp,
-                            color = colors.textMuted
-                        )
-                        if (uiState.sensorState.lux != null) {
-                            Text(
-                                text = String.format(Locale.US, "Cahaya: %.0f Lux", uiState.sensorState.lux),
-                                fontFamily = PlexMonoFontFamily,
-                                fontSize = 11.sp,
-                                color = colors.accentCyan
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    VectorComponentBars(
-                        bx = uiState.sensorState.bx,
-                        by = uiState.sensorState.by,
-                        bz = uiState.sensorState.bz
-                    )
-                }
-            }
-
-            // 4. Grafik Osiloskop Sinyal 10 Detik
-            DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "GRAFIK JEJAK OSILOSKOP (10 DETIK)",
-                        fontFamily = PlexSansFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 11.sp,
-                        letterSpacing = 1.2.sp,
-                        color = colors.textMuted
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OscilloscopeGraph(
-                        samples = uiState.history10s,
-                        maxUt = (uiState.sensorState.magneticUt * 1.5f).coerceAtLeast(120f)
-                    )
-                }
-            }
-
-            // 5. Kartu Statistik Sesi (Min, Max, Avg)
-            DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "STATISTIK SESI PENGUKURAN",
-                            fontFamily = PlexSansFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.sp,
-                            letterSpacing = 1.2.sp,
-                            color = colors.textMuted
-                        )
-                        IconButton(
-                            onClick = viewModel::resetStatistics,
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Reset Statistik",
-                                tint = colors.textMuted,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        StatColumn(
-                            label = "MINIMUM",
-                            value = uiState.displayUnit.convertFromMicrotesla(uiState.minUtSinceStart),
-                            unit = uiState.displayUnit.symbol,
-                            color = colors.accentCyan
-                        )
-                        StatColumn(
-                            label = "RATA-RATA",
-                            value = uiState.displayUnit.convertFromMicrotesla(uiState.averageUtSinceStart),
-                            unit = uiState.displayUnit.symbol,
-                            color = colors.inkText
-                        )
-                        StatColumn(
-                            label = "MAKSIMUM",
-                            value = uiState.displayUnit.convertFromMicrotesla(uiState.maxUtSinceStart),
-                            unit = uiState.displayUnit.symbol,
-                            color = colors.warningAmber
-                        )
-                    }
-                }
-            }
-
-            // 6. Tombol Aksi Simpan ke Ruangan
-            Button(
-                onClick = viewModel::openSaveModal,
+                tiltAngleDeg = uiState.sensorState.tiltState.tiltAngle,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.accentCyan,
-                    contentColor = colors.paperBackground
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Simpan ke Titik Ruangan",
-                    fontFamily = PlexSansFontFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
-                )
-            }
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 6.dp)
+            )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // 2. Gauge Analog Melengkung 240° dengan Nilai Monospace Besar
+                DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        ArcGauge240(
+                            valueUt = uiState.sensorState.magneticUt,
+                            displayUnit = uiState.displayUnit,
+                            sensorMaxRangeUt = uiState.sensorState.sensorMaxRangeUt,
+                            status = uiState.sensorState.status
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Penjelasan Fisika Dipol Singkat
+                        Text(
+                            text = "Fluks magnet meluruh drastis sebanding 1/r³ terhadap jarak.",
+                            fontFamily = PlexSansFontFamily,
+                            fontSize = 11.sp,
+                            color = colors.textMuted
+                        )
+                    }
+                }
+
+                // 3. Komponen Vektor Sumbu X, Y, Z
+                DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "KOMPONEN VEKTOR MEDAN (X, Y, Z)",
+                                fontFamily = PlexSansFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                letterSpacing = 1.2.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                color = colors.textMuted,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (uiState.sensorState.lux != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = String.format(Locale.US, "Cahaya: %.0f Lux", uiState.sensorState.lux),
+                                    fontFamily = PlexMonoFontFamily,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    color = colors.accentCyan
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        VectorComponentBars(
+                            bx = uiState.sensorState.bx,
+                            by = uiState.sensorState.by,
+                            bz = uiState.sensorState.bz
+                        )
+                    }
+                }
+
+                // 4. Grafik Osiloskop Sinyal 10 Detik
+                val oscMaxUt = if (uiState.sensorState.magneticUt.isFinite()) {
+                    (uiState.sensorState.magneticUt * 1.5f).coerceAtLeast(120f)
+                } else {
+                    120f
+                }
+                DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "GRAFIK JEJAK OSILOSKOP (10 DETIK)",
+                            fontFamily = PlexSansFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.2.sp,
+                            color = colors.textMuted
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OscilloscopeGraph(
+                            samples = uiState.history10s,
+                            maxUt = oscMaxUt
+                        )
+                    }
+                }
+
+                // 5. Kartu Statistik Sesi (Min, Max, Avg)
+                val maxStatColor = if (colors.isDark) colors.warningAmber else Color(0xFFB45309)
+                DetectiveCrosshairCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "STATISTIK SESI PENGUKURAN",
+                                fontFamily = PlexSansFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                                letterSpacing = 1.2.sp,
+                                color = colors.textMuted
+                            )
+                            IconButton(
+                                onClick = onResetStatistics,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Reset Statistik",
+                                    tint = colors.textMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            StatColumn(
+                                label = "MINIMUM",
+                                value = uiState.displayUnit.convertFromMicrotesla(uiState.minUtSinceStart),
+                                unit = uiState.displayUnit.symbol,
+                                color = colors.accentCyan
+                            )
+                            StatColumn(
+                                label = "RATA-RATA",
+                                value = uiState.displayUnit.convertFromMicrotesla(uiState.averageUtSinceStart),
+                                unit = uiState.displayUnit.symbol,
+                                color = colors.inkText
+                            )
+                            StatColumn(
+                                label = "MAKSIMUM",
+                                value = uiState.displayUnit.convertFromMicrotesla(uiState.maxUtSinceStart),
+                                unit = uiState.displayUnit.symbol,
+                                color = maxStatColor
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
 
         // Modal Bottom Sheet untuk Menyimpan Titik ke Ruangan
         if (uiState.isSaveModalVisible) {
             SavePointBottomSheet(
                 uiState = uiState,
-                onDismiss = viewModel::closeSaveModal,
-                onSelectRoom = viewModel::onRoomSelected,
-                onNotesChange = viewModel::onNotesInputChanged,
-                onConfirmSave = viewModel::savePointToRoom,
-                onCreateRoom = {
-                    viewModel.closeSaveModal()
-                    onNavigateToCreateRoom()
-                }
+                onDismiss = onDismissSaveModal,
+                onSelectRoom = onSelectRoom,
+                onNotesChange = onNotesChange,
+                onConfirmSave = onConfirmSave,
+                onCreateRoom = onCreateRoom
             )
         }
     }
@@ -587,10 +701,11 @@ private fun SavePointBottomSheet(
 
 @Composable
 private fun SensorUnavailableScreen(
-    colors: com.detektifkamar.app.ui.theme.DetectiveColors
+    colors: com.detektifkamar.app.ui.theme.DetectiveColors,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(colors.paperBackground)
             .padding(24.dp),

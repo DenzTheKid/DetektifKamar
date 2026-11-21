@@ -17,6 +17,10 @@ object MagneticClassifier {
         magnitudeUt: Float,
         sensorMaxRange: Float = 2000f
     ): MagneticStatus {
+        if (!magnitudeUt.isFinite()) {
+            return MagneticStatus.NORMAL
+        }
+
         // Jika pembacaan mendekati atau melampaui batas saturasi hardware (>= 98% maxRange)
         if (sensorMaxRange > 0f && magnitudeUt >= (sensorMaxRange * 0.98f)) {
             return MagneticStatus.SATURASI

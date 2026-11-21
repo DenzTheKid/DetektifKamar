@@ -25,51 +25,67 @@ fun DetectiveCrosshairCard(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    Surface(
-        modifier = modifier.drawBehind {
-            // Gambar tanda crosshair (+) teknis di pojok kiri atas dan kanan bawah kartu
-            val armLength = 8.dp.toPx()
-            val margin = 8.dp.toPx()
-            val strokeW = 1.2.dp.toPx()
+    val cardModifier = modifier.drawBehind {
+        // Gambar tanda crosshair (+) teknis di pojok kiri atas dan kanan bawah kartu
+        val armLength = 8.dp.toPx()
+        val margin = 8.dp.toPx()
+        val strokeW = 1.2.dp.toPx()
 
-            // Pojok Kiri Atas
-            val topLeftCenter = Offset(margin + armLength / 2, margin + armLength / 2)
-            drawLine(
-                color = crosshairColor,
-                start = Offset(topLeftCenter.x - armLength / 2, topLeftCenter.y),
-                end = Offset(topLeftCenter.x + armLength / 2, topLeftCenter.y),
-                strokeWidth = strokeW
-            )
-            drawLine(
-                color = crosshairColor,
-                start = Offset(topLeftCenter.x, topLeftCenter.y - armLength / 2),
-                end = Offset(topLeftCenter.x, topLeftCenter.y + armLength / 2),
-                strokeWidth = strokeW
-            )
+        // Pojok Kiri Atas
+        val topLeftCenter = Offset(margin + armLength / 2, margin + armLength / 2)
+        drawLine(
+            color = crosshairColor,
+            start = Offset(topLeftCenter.x - armLength / 2, topLeftCenter.y),
+            end = Offset(topLeftCenter.x + armLength / 2, topLeftCenter.y),
+            strokeWidth = strokeW
+        )
+        drawLine(
+            color = crosshairColor,
+            start = Offset(topLeftCenter.x, topLeftCenter.y - armLength / 2),
+            end = Offset(topLeftCenter.x, topLeftCenter.y + armLength / 2),
+            strokeWidth = strokeW
+        )
 
-            // Pojok Kanan Bawah
-            val bottomRightCenter = Offset(size.width - margin - armLength / 2, size.height - margin - armLength / 2)
-            drawLine(
-                color = crosshairColor,
-                start = Offset(bottomRightCenter.x - armLength / 2, bottomRightCenter.y),
-                end = Offset(bottomRightCenter.x + armLength / 2, bottomRightCenter.y),
-                strokeWidth = strokeW
-            )
-            drawLine(
-                color = crosshairColor,
-                start = Offset(bottomRightCenter.x, bottomRightCenter.y - armLength / 2),
-                end = Offset(bottomRightCenter.x, bottomRightCenter.y + armLength / 2),
-                strokeWidth = strokeW
-            )
-        },
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(CardCornerRadius),
-        color = backgroundColor,
-        border = BorderStroke(1.dp, borderColor),
-        onClick = onClick ?: {},
-        enabled = onClick != null
-    ) {
-        Box(modifier = Modifier.padding(14.dp)) {
-            content()
+        // Pojok Kanan Bawah
+        val bottomRightCenter = Offset(size.width - margin - armLength / 2, size.height - margin - armLength / 2)
+        drawLine(
+            color = crosshairColor,
+            start = Offset(bottomRightCenter.x - armLength / 2, bottomRightCenter.y),
+            end = Offset(bottomRightCenter.x + armLength / 2, bottomRightCenter.y),
+            strokeWidth = strokeW
+        )
+        drawLine(
+            color = crosshairColor,
+            start = Offset(bottomRightCenter.x, bottomRightCenter.y - armLength / 2),
+            end = Offset(bottomRightCenter.x, bottomRightCenter.y + armLength / 2),
+            strokeWidth = strokeW
+        )
+    }
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(CardCornerRadius)
+    val border = BorderStroke(1.dp, borderColor)
+
+    if (onClick != null) {
+        Surface(
+            modifier = cardModifier,
+            shape = shape,
+            color = backgroundColor,
+            border = border,
+            onClick = onClick
+        ) {
+            Box(modifier = Modifier.padding(14.dp)) {
+                content()
+            }
+        }
+    } else {
+        Surface(
+            modifier = cardModifier,
+            shape = shape,
+            color = backgroundColor,
+            border = border
+        ) {
+            Box(modifier = Modifier.padding(14.dp)) {
+                content()
+            }
         }
     }
 }

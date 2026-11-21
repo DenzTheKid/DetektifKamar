@@ -2,28 +2,28 @@ package com.detektifkamar.app.ui.components
 
 import android.graphics.Paint
 import android.graphics.Typeface
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.withInfiniteAnimationFrameNanos
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -32,29 +32,37 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.detektifkamar.app.domain.logic.GaugeScaleCalculator
 import com.detektifkamar.app.domain.model.MagneticStatus
 import com.detektifkamar.app.domain.model.UnitType
 import com.detektifkamar.app.ui.theme.DetectiveTheme
 import com.detektifkamar.app.ui.theme.PlexMonoFontFamily
 import com.detektifkamar.app.ui.theme.PlexSansFontFamily
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.sin
+
+private class ScaleTierHolder(var lastMaxUt: Float? = null)
 
 /**
  * Gauge analog melengkung 240° dengan spesifikasi instrumen presisi:
  * - Busur 240 derajat (mulai dari 150° ke 390°)
- * - Jarum dengan animasi pegas halus (spring: dampingRatio = 0.75, stiffness = StiffnessMediumLow)
- * - Tick mark tipis tiap 10, tebal tiap 50, dan garis rentang medan bumi (25–65 µT)
- * - Garis pemindai (scanner line) yang bergerak perlahan di latar gauge
+ * - Jarum dengan loop frame-clock non-cancelling (aman pada update sensor >60 Hz)
+ * - Pembacaan digital langsung dari nilai tersaring (tidak pernah macet oleh pembatalan animasi)
+ * - Skala dinamis terkalibrasi (GaugeScaleCalculator) yang bersih untuk µT, mT, dan G
  */
 @Composable
 fun ArcGauge240(
@@ -65,28 +73,57 @@ fun ArcGauge240(
     modifier: Modifier = Modifier
 ) {
     val colors = DetectiveTheme.colors
+    val safeValueUt = GaugeScaleCalculator.sanitizeValue(valueUt)
 
-    // Tentukan batas atas skala gauge yang proporsional untuk visualisasi (dinamis hingga 300 µT, atau lebih jika tinggi)
-    val maxScaleUt = remember(valueUt) {
-        when {
-            valueUt <= 200f -> 200f
-            valueUt <= 500f -> 500f
-            valueUt <= 1000f -> 1000f
-            else -> sensorMaxRangeUt.coerceAtLeast(1000f)
+    // Loop animasi jarum tunggal non-cancelling menggunakan frame clock Compose
+    val latestTargetUt by rememberUpdatedState(safeValueUt)
+    var animatedValueUt by remember { mutableFloatStateOf(safeValueUt) }
+
+    LaunchedEffect(Unit) {
+        var hasLastFrame = false
+        var lastFrameNanos = 0L
+        var velocity = 0f
+        val omega = 14f
+        while (true) {
+            withInfiniteAnimationFrameNanos { frameNanos ->
+                val target = latestTargetUt
+                if (!hasLastFrame) {
+                    hasLastFrame = true
+                    lastFrameNanos = frameNanos
+                    animatedValueUt = target
+                    return@withInfiniteAnimationFrameNanos
+                }
+                val dt = ((frameNanos - lastFrameNanos) / 1_000_000_000f).coerceIn(0f, 0.1f)
+                lastFrameNanos = frameNanos
+                if (dt > 0f) {
+                    val diff = animatedValueUt - target
+                    if (abs(diff) < 0.05f && abs(velocity) < 0.05f) {
+                        animatedValueUt = target
+                        velocity = 0f
+                    } else {
+                        val expTerm = exp(-omega * dt)
+                        val c2 = velocity + omega * diff
+                        val nextDiff = (diff + c2 * dt) * expTerm
+                        velocity = (velocity - omega * c2 * dt) * expTerm
+                        animatedValueUt = (target + nextDiff).coerceAtLeast(0f)
+                    }
+                }
+            }
         }
     }
 
-    // Animasi pergerakan jarum dengan spesifikasi Spring (damping 0.75, medium-low stiffness)
-    val animatedValue = remember { Animatable(valueUt) }
-    LaunchedEffect(valueUt) {
-        animatedValue.animateTo(
-            targetValue = valueUt,
-            animationSpec = spring(
-                dampingRatio = 0.75f,
-                stiffness = Spring.StiffnessMediumLow
-            )
-        )
+    // Hitung skala dinamis dengan histeresis dan sinkronisasi nilai jarum
+    val scaleTierHolder = remember { ScaleTierHolder() }
+    val gaugeScale = remember(safeValueUt, animatedValueUt, sensorMaxRangeUt, displayUnit) {
+        GaugeScaleCalculator.calculate(
+            valueUt = safeValueUt,
+            animatedValueUt = animatedValueUt,
+            sensorMaxRangeUt = sensorMaxRangeUt,
+            displayUnit = displayUnit,
+            previousMaxScaleUt = scaleTierHolder.lastMaxUt
+        ).also { scaleTierHolder.lastMaxUt = it.maxScaleUt }
     }
+    val maxScaleUt = gaugeScale.maxScaleUt
 
     // Animasi garis pemindai (radar sweep) di latar belakang
     val infiniteTransition = rememberInfiniteTransition(label = "RadarSweep")
@@ -100,12 +137,43 @@ fun ArcGauge240(
         label = "ScannerSweepAngle"
     )
 
-    // Konversi nilai utama ke satuan yang dipilih
-    val convertedValue = displayUnit.convertFromMicrotesla(animatedValue.value)
+    // Pembacaan angka digital langsung dari nilai tersaring (anti-freeze pada frekuensi tinggi)
+    val convertedValue = displayUnit.convertFromMicrotesla(safeValueUt)
     val formattedValue = String.format(Locale.US, "%.${displayUnit.decimalPlaces}f", convertedValue)
+    val readoutFontSize = when {
+        formattedValue.length >= 8 -> 40.sp
+        formattedValue.length >= 7 -> 46.sp
+        formattedValue.length >= 6 -> 52.sp
+        else -> 58.sp
+    }
+
+    val density = LocalDensity.current
+    val labelTextSizePx = with(density) { 9.sp.toPx() }
+    val labelColorArgb = colors.textMuted.toArgb()
+    val textPaint = remember(labelColorArgb, labelTextSizePx) {
+        Paint().apply {
+            color = labelColorArgb
+            textSize = labelTextSizePx
+            typeface = Typeface.MONOSPACE
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+    }
+
+    val majorLabelsText = remember(gaugeScale) {
+        gaugeScale.ticks.mapNotNull { it.label }.joinToString(",")
+    }
+    val scaleMaxLabel = remember(gaugeScale) {
+        GaugeScaleCalculator.formatTickLabel(gaugeScale.maxScaleDisplay)
+    }
 
     Box(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("arc_gauge")
+            .semantics {
+                contentDescription = "Skala 0..$scaleMaxLabel ${displayUnit.symbol}; label=[$majorLabelsText]"
+            },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.size(290.dp)) {
@@ -161,25 +229,13 @@ fun ArcGauge240(
                 style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Butt)
             )
 
-            // 4. Tick Marks (Setiap 10 satuan dan 50 satuan)
-            val step = if (maxScaleUt <= 200f) 10 else if (maxScaleUt <= 500f) 25 else 50
-            val totalTicks = (maxScaleUt / step).toInt()
-
-            val textPaint = Paint().apply {
-                color = colors.textMuted.toArgb()
-                textSize = 9.sp.toPx()
-                typeface = Typeface.MONOSPACE
-                textAlign = Paint.Align.CENTER
-                isAntiAlias = true
-            }
-
-            for (i in 0..totalTicks) {
-                val tickVal = i * step
-                val fraction = tickVal.toFloat() / maxScaleUt
-                val angleDeg = startAngle + (fraction * sweepAngle)
+            // 4. Tick Marks & Label Skala Terbatas (dari GaugeScaleCalculator)
+            val labelRadius = radius - 20.dp.toPx()
+            for (tick in gaugeScale.ticks) {
+                val angleDeg = startAngle + (tick.fraction * sweepAngle)
                 val rad = Math.toRadians(angleDeg.toDouble())
 
-                val isMajor = (tickVal % (step * 2) == 0)
+                val isMajor = tick.isMajor
                 val tickLength = if (isMajor) 10.dp.toPx() else 5.dp.toPx()
                 val tickColor = if (isMajor) colors.inkText.copy(alpha = 0.7f) else colors.textMuted.copy(alpha = 0.4f)
 
@@ -199,15 +255,14 @@ fun ArcGauge240(
                     strokeWidth = if (isMajor) 1.8.dp.toPx() else 1.dp.toPx()
                 )
 
-                // Label numerik untuk tick mayor
-                if (isMajor) {
-                    val labelRadius = radius - 20.dp.toPx()
+                val label = tick.label
+                if (isMajor && label != null) {
                     val pLabel = Offset(
                         center.x + labelRadius * cos(rad).toFloat(),
                         center.y + labelRadius * sin(rad).toFloat() + 3.dp.toPx()
                     )
                     drawContext.canvas.nativeCanvas.drawText(
-                        tickVal.toString(),
+                        label,
                         pLabel.x,
                         pLabel.y,
                         textPaint
@@ -216,7 +271,7 @@ fun ArcGauge240(
             }
 
             // 5. Gambar Jarum Penunjuk (Needle) dengan Ujung Runcing
-            val valueFraction = (animatedValue.value / maxScaleUt).coerceIn(0f, 1.05f)
+            val valueFraction = (animatedValueUt / maxScaleUt).coerceIn(0f, 1.05f)
             val needleAngleDeg = startAngle + (valueFraction * sweepAngle)
             val needleRad = Math.toRadians(needleAngleDeg.toDouble())
             val needleLength = radius - 8.dp.toPx()
@@ -265,28 +320,39 @@ fun ArcGauge240(
             )
         }
 
-        // Tampilan Angka Digital Utama di Bawah Titik Tumpu Busur
-        Column(
-            modifier = Modifier
-                .offset(y = 65.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = formattedValue,
-                fontFamily = PlexMonoFontFamily,
-                fontWeight = FontWeight.Medium,
-                fontSize = 58.sp,
-                lineHeight = 60.sp,
-                color = colors.inkText
-            )
-            Text(
-                text = displayUnit.symbol,
-                fontFamily = PlexSansFontFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = colors.textMuted,
-                letterSpacing = 1.sp
-            )
+        // Tampilan Angka Digital Utama di Bawah Titik Tumpu Busur (batasi fontScale berlebih agar tidak menabrak pivot hub)
+        val readoutDensity = Density(
+            density = density.density,
+            fontScale = density.fontScale.coerceAtMost(1.25f)
+        )
+        CompositionLocalProvider(LocalDensity provides readoutDensity) {
+            Column(
+                modifier = Modifier.offset(y = 65.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = formattedValue,
+                    fontFamily = PlexMonoFontFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = readoutFontSize,
+                    lineHeight = 60.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    color = colors.inkText,
+                    modifier = Modifier.testTag("arc_gauge_reading")
+                )
+                Text(
+                    text = displayUnit.symbol,
+                    fontFamily = PlexSansFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    color = colors.textMuted,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.testTag("arc_gauge_unit")
+                )
+            }
         }
     }
 }

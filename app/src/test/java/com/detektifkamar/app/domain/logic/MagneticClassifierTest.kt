@@ -36,4 +36,11 @@ class MagneticClassifierTest {
         val status = MagneticClassifier.classify(1990.0f, 2000f)
         assertEquals(MagneticStatus.SATURASI, status)
     }
+
+    @Test
+    fun testNonFiniteMagnitudesDefaultToNormal() {
+        assertEquals(MagneticStatus.NORMAL, MagneticClassifier.classify(Float.NaN, 2000f))
+        assertEquals(MagneticStatus.NORMAL, MagneticClassifier.classify(Float.NEGATIVE_INFINITY, 2000f))
+        assertEquals(MagneticStatus.NORMAL, MagneticClassifier.classify(Float.POSITIVE_INFINITY, 2000f))
+    }
 }

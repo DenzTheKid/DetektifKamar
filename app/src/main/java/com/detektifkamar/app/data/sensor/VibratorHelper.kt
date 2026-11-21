@@ -6,11 +6,16 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 
+interface HapticController {
+    fun vibrateShortPulse(durationMs: Long = 40L)
+    fun tickPulse()
+}
+
 /**
  * Pembantu getar haptik untuk indikasi medan tinggi.
  * Hanya memerlukan izin normal android.permission.VIBRATE.
  */
-class VibratorHelper(context: Context) {
+class VibratorHelper(context: Context) : HapticController {
 
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -20,7 +25,7 @@ class VibratorHelper(context: Context) {
         context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
-    fun vibrateShortPulse(durationMs: Long = 40L) {
+    override fun vibrateShortPulse(durationMs: Long) {
         try {
             if (vibrator?.hasVibrator() == true) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -37,7 +42,7 @@ class VibratorHelper(context: Context) {
         }
     }
 
-    fun tickPulse() {
+    override fun tickPulse() {
         vibrateShortPulse(30L)
     }
 }

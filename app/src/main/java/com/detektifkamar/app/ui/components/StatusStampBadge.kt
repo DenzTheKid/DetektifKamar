@@ -9,9 +9,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,7 +26,8 @@ import com.detektifkamar.app.ui.theme.PlexMonoFontFamily
 fun StatusStampBadge(
     status: MagneticStatus,
     modifier: Modifier = Modifier,
-    rotateDeg: Float = -3f
+    rotateDeg: Float = -3f,
+    compact: Boolean = false
 ) {
     val targetColor = DetectiveTheme.colors.colorForStatus(status)
     val animatedColor by animateColorAsState(
@@ -43,14 +44,20 @@ fun StatusStampBadge(
                 color = animatedColor,
                 shape = RoundedCornerShape(4.dp)
             )
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .padding(
+                horizontal = if (compact) 6.dp else 8.dp,
+                vertical = if (compact) 2.dp else 3.dp
+            ),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = status.label,
             fontFamily = PlexMonoFontFamily,
             fontWeight = FontWeight.Bold,
-            fontSize = 11.sp,
-            letterSpacing = 1.2.sp,
+            fontSize = if (compact) 10.sp else 11.sp,
+            letterSpacing = if (compact) 0.6.sp else 1.2.sp,
+            maxLines = 1,
+            softWrap = false,
             color = animatedColor
         )
     }
