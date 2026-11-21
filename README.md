@@ -75,7 +75,8 @@ Aplikasi **DETEKTIF KAMAR** mengubah smartphone menjadi alat ukur ilmiah (*Gauss
 | **Reaktivitas DB** | **DatabaseChangeNotifier** berbasis `MutableStateFlow` yang memicu pembaruan Flow secara otomatis saat terjadi operasi tulis (`INSERT`/`UPDATE`/`DELETE`). |
 | **Preferensi** | **SharedPreferences** untuk menyimpan preferensi satuan, tema tampilan, haptik, dan flag panduan. |
 | **Dependency Injection** | **Manual DI (AppContainer)** tingkat `Application` tanpa framework eksternal (Hilt/Koin), menjaga ukuran biner kecil dan kompilasi cepat. |
-| **Build System** | Gradle 8.7, AGP 8.5.2, minSdk 26 (Java 8/Time API native tanpa desugaring), targetSdk 34, compileSdk 34. |
+| **Build System** | Gradle 9.3.0 (Wrapper), AGP 8.5.2, minSdk 26 (Java 8/Time API native tanpa desugaring), targetSdk 34, compileSdk 34. |
+| **Pengujian Otomatis** | JUnit 4, Kotlinx Coroutines Test, Compose UI Test & Robolectric 4.13 (52 automated test di 15 test suite). |
 | **Keamanan R8** | Lulus build release dengan `isMinifyEnabled = true` dan ProGuard rules terkonfigurasi. |
 
 ---
@@ -143,13 +144,21 @@ Aplikasi menggunakan kombinasi sensor perangkat keras asli Android:
 
 ---
 
-## 6. Tinjauan Antarmuka (Layar Utama)
+## 6. Tinjauan Antarmuka & Screenshot Aplikasi
+
+### Tangkapan Layar Aplikasi
+
+| Beranda Ruangan | Pindai Medan Langsung | Riwayat Pengukuran |
+| :---: | :---: | :---: |
+| ![Beranda Ruangan](docs/screenshots/01_beranda_ruangan.png) | ![Pindai Medan Langsung](docs/screenshots/02_pindai_langsung.png) | ![Riwayat Pengukuran](docs/screenshots/03_riwayat_pengukuran.png) |
+
+### Ringkasan Layar
 
 | Layar | Deskripsi & Komponen Kunci |
 | :--- | :--- |
 | **A. Pemetaan Ruangan (Beranda)** | Kartu padat berornamen crosshair teknis, kode berkas kasus (`KASUS #001 · KAMAR TIDUR`), jumlah titik ukur, status cap karet miring, dan FAB Tambah Ruangan. |
 | **B. Tambah / Edit Ruangan** | Formulir validasi nama (maks 40 karakter dengan counter), chip seleksi tipe ruangan, input dimensi meter (lebar x panjang), dan catatan. |
-| **C. Pindai Medan Langsung** | Gauge analog lengkung 240° dengan animasi spring, pembacaan digital monospace besar, grafik sinyal osiloskop 10 detik, bar vektor X/Y/Z, kartu statistik sesi, banner tilt warning, dan tombol bekukan. |
+| **C. Pindai Medan Langsung** | Gauge analog lengkung 240° dengan animasi spring, pembacaan digital monospace besar, grafik sinyal osiloskop 10 detik, bar vektor X/Y/Z, kartu statistik sesi, banner tilt warning, dan tombol simpan di bottom dock. |
 | **D. Kalibrasi Magnetik** | Panduan gerakan angka 8 selama 15 detik dengan countdown timer, visualisasi sampel 3D real-time, peringatan pengaruh casing magnet MagSafe, dan estimasi offset bias hard-iron. |
 | **E. Riwayat Pengukuran** | Filter chip horizontal per ruangan & status, pengelompokan hari ("Hari Ini", "Kemarin"), swipe to delete dengan Undo Snackbar, dan ekspor CSV via Storage Access Framework. |
 | **F. Detail Ruangan** | Ringkasan intensitas medan, canvas denah kotak interaktif berskala dengan titik-titik pengukuran, dan grafik batang intensitas antar titik. |
@@ -161,14 +170,17 @@ Aplikasi menggunakan kombinasi sensor perangkat keras asli Android:
 ## 7. Panduan Menjalankan Aplikasi
 
 ### Kebutuhan Lingkungan:
-- **Android Studio**: Android Studio Koala / Ladybug / Jellyfish (disarankan versi 2024.1+).
+- **Android Studio**: Android Studio Koala / Ladybug / Jellyfish ke atas (disarankan versi 2024.1+ / terbaru).
 - **JDK**: JDK 17 (misalnya JetBrains Runtime / OpenJDK 17).
 - **Perangkat Uji**: Smartphone fisik Android (minSdk 26 / Android 8.0 Oreo ke atas) dengan sensor magnetometer terpasang, atau Emulator Android dengan Virtual Sensors aktif.
 
 ### Langkah Build & Instalasi:
 
-1. **Clone atau Buka Proyek**:
-   Buka folder proyek `DetektifKamar` di Android Studio.
+1. **Clone Repositori & Buka di Android Studio**:
+   ```bash
+   git clone https://github.com/DenzTheKid/DetektifKamar.git
+   ```
+   Buka folder proyek `DetektifKamar` di Android Studio, tunggu **Gradle Sync** selesai, lalu tekan tombol **Run ▶** untuk memasang ke perangkat/emulator.
 2. **Jalankan Unit Test**:
    ```powershell
    ./gradlew testDebugUnitTest
