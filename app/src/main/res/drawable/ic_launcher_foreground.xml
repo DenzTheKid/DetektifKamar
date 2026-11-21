@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Garis medan magnet tak terlihat (arc garis putus) -->
+    <path
+        android:strokeColor="#F2D14B"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M38,40 C38,30 70,30 70,40" />
+    <path
+        android:strokeColor="#F1EFE6"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M32,40 C32,22 76,22 76,40" />
+        
+    <!-- Badan Magnet Tapal Kuda (Merah Stempel Laboratorium #B5302A) -->
+    <path
+        android:fillColor="#B5302A"
+        android:strokeColor="#1B2330"
+        android:strokeWidth="1.5"
+        android:pathData="M36,44 v20 c0,9.9 8.1,18 18,18 c9.9,0 18,-8.1 18,-18 v-20 h-9 v20 c0,5 -4,9 -9,9 c-5,0 -9,-4 -9,-9 v-20 z" />
+        
+    <!-- Kutub Magnet Kiri (Kutub Utara - Putih Krem) -->
+    <path
+        android:fillColor="#F1EFE6"
+        android:strokeColor="#1B2330"
+        android:strokeWidth="1.5"
+        android:pathData="M36,44 h9 v-10 h-9 z" />
+        
+    <!-- Kutub Magnet Kanan (Kutub Selatan - Putih Krem) -->
+    <path
+        android:fillColor="#F1EFE6"
+        android:strokeColor="#1B2330"
+        android:strokeWidth="1.5"
+        android:pathData="M63,44 h9 v-10 h-9 z" />
+        
+    <!-- Tanda N dan S mini -->
+    <path
+        android:fillColor="#1B2330"
+        android:pathData="M39.5,41.5 v-5 h1.5 l2,3.5 v-3.5 h1 v5 h-1.5 l-2,-3.5 v3.5 z" />
+    <path
+        android:fillColor="#1B2330"
+        android:pathData="M66.5,41.5 h3.5 v-1.5 h-3.5 v-1 h3.5 v-1.5 h-3.5 v-1 h3.5" />
+
+    <!-- Retikel Penyelidik / Kaca Pembesar di tengah -->
+    <path
+        android:strokeColor="#F1EFE6"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M54,26 v6 M54,76 v6 M26,54 h6 M76,54 h6" />
+</vector>

@@ -1,0 +1,56 @@
+<resources>
+    <string name="app_name">Pindai Magnet</string>
+    <string name="tagline">Pemetaan dan Analisis Medan Magnet Ruangan</string>
+    
+    <!-- Navigasi Bawah (4 Tab Modern) -->
+    <string name="nav_ruangan">Ruangan</string>
+    <string name="nav_pindai">Pindai</string>
+    <string name="nav_riwayat">Riwayat</string>
+    <string name="nav_referensi">Referensi</string>
+    <string name="nav_pengaturan">Pengaturan</string>
+    
+    <!-- Ruangan (Daftar Denah) -->
+    <string name="ruangan_title">PEMETAAN RUANGAN</string>
+    <string name="ruangan_subtitle">Daftar denah dan survei medan magnet</string>
+    <string name="ruangan_empty_title">Belum Ada Ruangan</string>
+    <string name="ruangan_empty_desc">Mulai pemetaan pertama: tambahkan ruangan, tentukan ukuran luasnya, lalu petakan titik ukur di denah.</string>
+    <string name="ruangan_btn_tambah">+ Tambah Ruangan Baru</string>
+    
+    <!-- Form Ruangan -->
+    <string name="form_ruangan_title_new">Tambah Ruangan Baru</string>
+    <string name="form_ruangan_title_edit">Ubah Data Ruangan</string>
+    <string name="form_ruangan_label_title">Nama Ruangan</string>
+    <string name="form_ruangan_hint_title">Mis. Kamar Tidur Utama, Ruang Kerja</string>
+    <string name="form_ruangan_label_type">Tipe Ruangan</string>
+    <string name="form_ruangan_label_width">Lebar Ruangan (meter)</string>
+    <string name="form_ruangan_label_length">Panjang Ruangan (meter)</string>
+    <string name="form_ruangan_label_note">Catatan Tambahan (Opsional)</string>
+    <string name="form_ruangan_btn_simpan">Simpan Ruangan</string>
+    
+    <!-- Detail Ruangan -->
+    <string name="tab_denah">Denah Ruangan</string>
+    <string name="tab_titik_ukur">Daftar Titik Ukur</string>
+    <string name="tab_laporan">Ringkasan Analisis</string>
+    <string name="layer_magnet">Medan Magnet</string>
+    <string name="layer_cahaya">Peta Cahaya</string>
+    <string name="layer_polos">Denah Polos</string>
+    <string name="heatmap_min_points_notice">Memerlukan minimal 3 titik ukur untuk menghasilkan peta panas.</string>
+    <string name="heatmap_disclaimer">Estimasi kontur interpolasi IDW berdasarkan titik yang terukur.</string>
+    
+    <!-- Kategori Intensitas Medan -->
+    <string name="kategori_normal">Normal / Aman</string>
+    <string name="kategori_ringan">Medan Rendah</string>
+    <string name="kategori_kuat">Medan Tinggi</string>
+    <string name="kategori_sumber_dekat">Medan Sangat Kuat</string>
+    
+    <!-- Acuan / Baseline -->
+    <string name="stamp_belum_ada_acuan">BELUM ADA ACUAN</string>
+    <string name="acuan_info">Baseline: %1$.1f µT</string>
+    
+    <!-- Pindai & Ukur -->
+    <string name="pindai_title">PINDAI MEDAN LANGSUNG</string>
+    <string name="ukur_btn_ambil">Mulai Rekam Titik</string>
+    <string name="ukur_stabil">Posisi Stabil</string>
+    <string name="ukur_tidak_stabil">Tahan Perangkat Diam</string>
+    <string name="simulasi_badge">MODE SIMULASI</string>
+</resources>
