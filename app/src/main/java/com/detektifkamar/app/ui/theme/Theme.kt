@@ -1,5 +1,6 @@
 package com.detektifkamar.app.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -7,9 +8,33 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
-val LocalDetectiveColors = staticCompositionLocalOf { LightDetectiveColors }
+val LocalDetectiveColors = staticCompositionLocalOf { DarkDetectiveColors }
+
+private val MaterialDarkColors = darkColorScheme(
+    primary = DarkDetectiveColors.accentCyan,
+    surface = DarkDetectiveColors.surface,
+    background = DarkDetectiveColors.paperBackground,
+    onPrimary = DarkDetectiveColors.paperBackground,
+    onSurface = DarkDetectiveColors.inkText,
+    onBackground = DarkDetectiveColors.inkText,
+    outline = DarkDetectiveColors.borderOutline
+)
+
+private val MaterialLightColors = lightColorScheme(
+    primary = LightDetectiveColors.accentCyan,
+    surface = LightDetectiveColors.surface,
+    background = LightDetectiveColors.paperBackground,
+    onPrimary = LightDetectiveColors.paperBackground,
+    onSurface = LightDetectiveColors.inkText,
+    onBackground = LightDetectiveColors.inkText,
+    outline = LightDetectiveColors.borderOutline
+)
 
 object DetectiveTheme {
     val colors: DetectiveColors
@@ -32,37 +57,24 @@ fun DetektifKamarTheme(
         else -> isSystemInDarkTheme()
     }
 
-    val customColors = if (isDark) DarkDetectiveColors else LightDetectiveColors
+    val colors = if (isDark) DarkDetectiveColors else LightDetectiveColors
+    val materialColors = if (isDark) MaterialDarkColors else MaterialLightColors
 
-    val materialColors = if (isDark) {
-        darkColorScheme(
-            primary = customColors.stampRed,
-            onPrimary = customColors.paperBackground,
-            secondary = customColors.cyanotypeBlue,
-            onSecondary = customColors.paperBackground,
-            background = customColors.paperBackground,
-            onBackground = customColors.inkText,
-            surface = customColors.surface,
-            onSurface = customColors.inkText,
-            outline = customColors.borderOutline
-        )
-    } else {
-        lightColorScheme(
-            primary = customColors.stampRed,
-            onPrimary = customColors.paperBackground,
-            secondary = customColors.cyanotypeBlue,
-            onSecondary = customColors.paperBackground,
-            background = customColors.paperBackground,
-            onBackground = customColors.inkText,
-            surface = customColors.surface,
-            onSurface = customColors.inkText,
-            outline = customColors.borderOutline
-        )
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                window.statusBarColor = colors.paperBackground.toArgb()
+                window.navigationBarColor = colors.paperBackground.toArgb()
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !isDark
+                controller.isAppearanceLightNavigationBars = !isDark
+            }
+        }
     }
 
-    CompositionLocalProvider(
-        LocalDetectiveColors provides customColors
-    ) {
+    CompositionLocalProvider(LocalDetectiveColors provides colors) {
         MaterialTheme(
             colorScheme = materialColors,
             typography = DetectiveTypography,

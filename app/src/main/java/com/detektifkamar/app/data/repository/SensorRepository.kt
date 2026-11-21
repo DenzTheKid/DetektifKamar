@@ -1,15 +1,17 @@
 package com.detektifkamar.app.data.repository
 
 import android.hardware.SensorManager
+import com.detektifkamar.app.data.sensor.CalibrationEngine
 import com.detektifkamar.app.data.sensor.HotColdTrend
 import com.detektifkamar.app.data.sensor.LiveSensorState
 import com.detektifkamar.app.data.sensor.RealSensorSource
 import com.detektifkamar.app.data.sensor.SensorSource
 import com.detektifkamar.app.data.sensor.SimulationSensorSource
 import com.detektifkamar.app.domain.logic.AzimuthUtils
-import com.detektifkamar.app.domain.logic.StabilityDetector
-import com.detektifkamar.app.domain.logic.StatisticsUtils
-import kotlinx.coroutines.CoroutineScope
+import com.detektifkamar.app.domain.logic.MagneticClassifier
+import com.detektifkamar.app.domain.logic.TiltDetector
+import com.detektifkamar.app.domain.model.CalibrationData
+import com.detektifkamar.app.domain.repository.CalibrationRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -17,17 +19,31 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import java.util.LinkedList
-import kotlin.math.abs
+import kotlin.math.sqrt
 
 interface SensorRepository {
     fun getLiveSensorState(): Flow<LiveSensorState>
+    fun createCalibrationEngine(): CalibrationEngine
+    val isMagnetometerAvailable: Boolean
+    val sensorMaxRangeUt: Float
 }
 
 class SensorRepositoryImpl(
     private val realSensorSource: RealSensorSource,
     private val simulationSensorSource: SimulationSensorSource,
-    private val preferencesRepository: PreferencesRepository
+    private val preferencesRepository: PreferencesRepository,
+    private val calibrationRepository: CalibrationRepository
 ) : SensorRepository {
+
+    override val isMagnetometerAvailable: Boolean
+        get() = realSensorSource.isMagnetometerAvailable
+
+    override val sensorMaxRangeUt: Float
+        get() = realSensorSource.sensorMaxRangeUt
+
+    override fun createCalibrationEngine(): CalibrationEngine {
+        return CalibrationEngine(realSensorSource)
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun getLiveSensorState(): Flow<LiveSensorState> {
@@ -38,7 +54,6 @@ class SensorRepositoryImpl(
     }
 
     private fun createProcessedSensorFlow(source: SensorSource, isSimulation: Boolean): Flow<LiveSensorState> {
-        // State internal untuk low-pass filter (alpha = 0.15)
         val alpha = 0.15f
         val filteredMag = FloatArray(3)
         val filteredAccel = FloatArray(3)
@@ -47,10 +62,6 @@ class SensorRepositoryImpl(
 
         val rotationMatrix = FloatArray(9)
         val orientation = FloatArray(3)
-
-        // Sliding window kestabilan akselerometer (0.5 detik = ~10 sampel pada 20Hz)
-        val accelWindow = LinkedList<Float>()
-        val maxAccelWindowSize = 10
 
         // Sliding window hangat-dingin (1.5 detik terakhir = 30 sampel, 1.5 detik sebelumnya = 30 sampel)
         val recentMagWindow = LinkedList<Float>()
@@ -61,8 +72,9 @@ class SensorRepositoryImpl(
         return combine(
             source.getMagneticFieldFlow(),
             source.getAccelerometerFlow(),
-            source.getLightFlow()
-        ) { mag, accel, lux ->
+            source.getLightFlow(),
+            calibrationRepository.getCalibrationFlow()
+        ) { mag, accel, lux, calibration ->
             // 1. Low-Pass Filter untuk Vektor Magnetik & Akselerometer
             if (!hasMagInit) {
                 filteredMag[0] = mag.x
@@ -86,9 +98,22 @@ class SensorRepositoryImpl(
                 filteredAccel[2] += alpha * (accel.z - filteredAccel[2])
             }
 
-            // 2. Azimuth Kompas (hanya valid jika tilt < 45 derajat)
+            // 2. Terapkan Bias Kalibrasi Hard-Iron
+            val biasX = calibration.biasX
+            val biasY = calibration.biasY
+            val biasZ = calibration.biasZ
+
+            val calX = filteredMag[0] - biasX
+            val calY = filteredMag[1] - biasY
+            val calZ = filteredMag[2] - biasZ
+            val calMagnitude = sqrt(calX * calX + calY * calY + calZ * calZ)
+
+            // 3. Deteksi Kemiringan (TiltDetector) dari Vektor Akselerometer
+            val tiltState = TiltDetector.detectTilt(filteredAccel[0], filteredAccel[1], filteredAccel[2])
+
+            // 4. Azimuth Kompas (hanya valid jika ponsel mendatar / tilt < 45°)
             var azimuthDeg: Float? = null
-            if (AzimuthUtils.isAzimuthValid(accel.tiltDeg)) {
+            if (!tiltState.isTilted) {
                 val success = SensorManager.getRotationMatrix(rotationMatrix, null, filteredAccel, filteredMag)
                 if (success) {
                     SensorManager.getOrientation(rotationMatrix, orientation)
@@ -98,60 +123,53 @@ class SensorRepositoryImpl(
                 }
             }
 
-            // 3. Gerbang Kestabilan Akselerometer
-            accelWindow.add(accel.magnitude)
-            if (accelWindow.size > maxAccelWindowSize) {
-                accelWindow.removeFirst()
-            }
-            val isStable = StabilityDetector.isStable(accelWindow)
-
-            // 4. Deteksi Hangat-Dingin dengan Histeresis
-            recentMagWindow.add(mag.magnitude)
+            // 5. Tren Hangat-Dingin
+            recentMagWindow.addLast(calMagnitude)
             if (recentMagWindow.size > maxHalfWindowSize) {
-                val popped = recentMagWindow.removeFirst()
-                previousMagWindow.add(popped)
+                val moved = recentMagWindow.removeFirst()
+                previousMagWindow.addLast(moved)
                 if (previousMagWindow.size > maxHalfWindowSize) {
                     previousMagWindow.removeFirst()
                 }
             }
 
-            if (recentMagWindow.size >= 15 && previousMagWindow.size >= 15) {
-                val recentAvg = StatisticsUtils.calculateMean(recentMagWindow)
-                val prevAvg = StatisticsUtils.calculateMean(previousMagWindow)
-                val diff = recentAvg - prevAvg
-
-                // Ambang 0.8 uT dengan histeresis 0.2 uT agar tidak berkedip
-                currentTrend = when (currentTrend) {
-                    HotColdTrend.MAKIN_PANAS -> {
-                        if (diff > 0.6f) HotColdTrend.MAKIN_PANAS
-                        else if (diff < -0.8f) HotColdTrend.MAKIN_DINGIN
-                        else HotColdTrend.STABIL
-                    }
-                    HotColdTrend.MAKIN_DINGIN -> {
-                        if (diff < -0.6f) HotColdTrend.MAKIN_DINGIN
-                        else if (diff > 0.8f) HotColdTrend.MAKIN_PANAS
-                        else HotColdTrend.STABIL
-                    }
-                    HotColdTrend.STABIL -> {
-                        if (diff >= 0.8f) HotColdTrend.MAKIN_PANAS
-                        else if (diff <= -0.8f) HotColdTrend.MAKIN_DINGIN
-                        else HotColdTrend.STABIL
-                    }
+            if (recentMagWindow.size >= 10 && previousMagWindow.size >= 10) {
+                val recentAvg = recentMagWindow.average().toFloat()
+                val prevAvg = previousMagWindow.average().toFloat()
+                val delta = recentAvg - prevAvg
+                val threshold = 0.8f
+                currentTrend = when {
+                    delta > threshold -> HotColdTrend.MAKIN_PANAS
+                    delta < -threshold -> HotColdTrend.MAKIN_DINGIN
+                    else -> HotColdTrend.STABIL
                 }
             }
 
+            // 6. Klasifikasi Status Intensitas Terpusat
+            val magneticStatus = MagneticClassifier.classify(
+                magnitudeUt = calMagnitude,
+                sensorMaxRange = source.sensorMaxRangeUt
+            )
+
             LiveSensorState(
-                magneticUt = mag.magnitude,
-                bx = mag.x,
-                by = mag.y,
-                bz = mag.z,
+                isMagnetometerAvailable = source.isMagnetometerAvailable,
+                sensorMaxRangeUt = source.sensorMaxRangeUt,
+                magneticUt = calMagnitude,
+                bx = calX,
+                by = calY,
+                bz = calZ,
+                rawBx = filteredMag[0],
+                rawBy = filteredMag[1],
+                rawBz = filteredMag[2],
                 accuracy = mag.accuracy,
-                isCalibrated = mag.accuracy >= SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM,
-                isStable = isStable,
-                unstableRatio = 0f,
-                tiltDeg = accel.tiltDeg,
+                isCalibrated = calibration.isCalibrated,
+                appliedBias = calibration,
+                isStable = !tiltState.isTilted,
+                tiltState = tiltState,
+                tiltDeg = tiltState.tiltAngle,
                 azimuthDeg = azimuthDeg,
                 lux = lux,
+                status = magneticStatus,
                 hotColdTrend = currentTrend,
                 isLightSensorAvailable = source.isLightSensorAvailable,
                 isSimulation = isSimulation

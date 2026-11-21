@@ -2,13 +2,12 @@ package com.detektifkamar.app.data.sensor
 
 import android.content.Context
 import android.os.Build
-import android.os.CombinedVibration
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 
 /**
- * Pembantu getar haptik untuk mode Selidik (pulsa getar makin cepat saat mendekati sumber).
+ * Pembantu getar haptik untuk indikasi medan tinggi.
  * Hanya memerlukan izin normal android.permission.VIBRATE.
  */
 class VibratorHelper(context: Context) {
@@ -36,5 +35,9 @@ class VibratorHelper(context: Context) {
         } catch (_: Exception) {
             // Abaikan kegagalan getar jika perangkat tidak mendukung
         }
+    }
+
+    fun tickPulse() {
+        vibrateShortPulse(30L)
     }
 }

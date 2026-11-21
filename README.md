@@ -1,169 +1,223 @@
-# Detektif Kamar
+# DETEKTIF KAMAR (EMF Room Surveyor)
 
-> *"Medan magnet tak terlihat, bukan tak terlacak."*
+> **"Seberapa kuat medan magnet di sini, dan dari mana asalnya?"**
 
-Aplikasi penyelidikan medan magnet di dalam ruangan berbasis **Android Native (Kotlin + Jetpack Compose)**. Dirancang khusus bagi pelajar dan mahasiswa Indonesia untuk mendeteksi anomali medan magnet di kamar, kos, ruang kerja, atau dapur menggunakan sensor fisik smartphone.
+Aplikasi Android Native berbasis **Kotlin + Jetpack Compose** yang dirancang sebagai instrumen lapangan presisi untuk mendeteksi, mengukur, memetakan, dan menganalisis intensitas medan magnet (Electromagnetic Field / EMF) di lingkungan tempat tinggal (kamar tidur, ruang kerja, dapur, dan laboratorium).
 
----
-
-## 🔍 Fitur Utama
-
-1. **Berkas Kasus TKP (Tempat Kejadian Perkara)**:
-   - Buat kasus ruangan berskala meter (panjang x lebar).
-   - Simpan catatan investigasi dan status acuan ruangan (*baseline*).
-2. **Denah Interaktif & Peta Panas (Heatmap IDW)**:
-   - Canvas denah presisi dengan kisi 0.5 meter.
-   - Peta panas interpolasi IDW (*Inverse Distance Weighting* kuadrat) dengan batas jangkauan radius 1.5 meter.
-   - Lapisan Peta Magnet, Peta Cahaya (lux), dan Polos.
-   - Penempatan perabot berlabel (kotak proporsional).
-   - Penandaan titik bukti langsung dengan mengetuk denah.
-3. **Pengambilan Bukti Terkalibrasi**:
-   - Gerbang kestabilan HP: hanya dapat merekam jika HP stabil (simpangan baku akselerometer < 0.25 m/s²).
-   - Sesi perekaman 4 detik dengan kalkulasi statistik lengkap (rata-rata, min, maks, simpangan baku, delta acuan).
-   - Evaluasi kualitas pembacaan (*baik*, *bergerak*, *akurasi rendah*, *derau tinggi*).
-   - Mode pengukuran titik acuan (*baseline*) ruangan.
-4. **Mode Selidik Langsung (Radar Hangat-Dingin)**:
-   - Meter jarum analog mikrotesla (µT) bergaya instrumen laboratorium 70-an.
-   - Indikator tren Hangat-Dingin (*Makin Panas!*, *Makin Dingin*, *Stabil*) dengan histeresis filter.
-   - Grafik jejak osiloskop 10 detik real-time.
-   - Penguraian vektor 3-sumbu ($B_x, B_y, B_z$).
-   - Pulsa getar haptik adaptif yang berdenyut lebih cepat saat mendekati sumber gangguan.
-5. **Katalog Tersangka (26 Entri)**:
-   - Berisi 26 tersangka gangguan elektromagnetik tipikal (speaker woofer, magnet kulkas, charger wireless, adaptor laptop, kompor induksi, tulangan cor dinding, dsb.).
-   - Dilengkapi rentang tipikal µT, jarak ukur, karakteristik fisik, dan prosedur verifikasi.
-   - Pencarian cerdas dan pencocokan otomatis (*JOIN query*) terhadap simpangan titik ukur.
-6. **Arsip Lintas Kasus**:
-   - Rekapitulasi seluruh barang bukti dari semua berkas kasus dengan filter dan sortir simpangan.
-7. **Desain Khas Laboratorium Fisika Tahun 70-an**:
-   - Latar kertas milimeter ringan tanpa bitmap.
-   - Tipografi mesin tik (*Special Elite*), teks teknis (*IBM Plex Sans*), dan angka sensor monospace (*IBM Plex Mono*).
-   - Stempel status investigasi karet miring.
-   - Mode Gelap (ruang gelap/papan tulis lab) dan Mode Terang.
-   - 100% Offline tanpa izin berbahaya (hanya izin normal `VIBRATE`).
+Aplikasi ini dikembangkan untuk keperluan akademik dan tugas kuliah dengan standar rekayasa perangkat lunak tinggi: arsitektur MVVM bersih, SQLite native murni dengan migrasi skema terstruktur, pemrosesan sensor fisik secara nyata, serta desain visual khas *"Field Detective Instrument"*.
 
 ---
 
-## ⚙️ Teknologi & Arsitektur
+## 1. Deskripsi Singkat & Latar Belakang Tema
 
-- **Bahasa**: Kotlin 2.0.20
-- **UI Framework**: Jetpack Compose (Material 3 sebagai fondasi, dengan tema, palet token, tipografi, dan komponen buatan sendiri)
-- **Arsitektur**: Clean MVVM (Model-View-ViewModel) dengan Unidirectional Data Flow (UDF)
-  - `domain/`: Logika matematika murni (IDW, Trigonometri sirkular azimuth, statistik, kestabilan, klasifikasi ambang) tanpa dependensi Android SDK.
-  - `data/`: SQLite murni via `SQLiteOpenHelper` dengan transaksi dan kaskade, `DatabaseChangeNotifier` untuk reaktivitas Flow.
-  - `ui/`: Compose Screen + ViewModel + Immutable UiState yang dikonsumsi dengan `collectAsStateWithLifecycle`.
-- **Injeksi Dependensi**: Manual Dependency Injection via `AppContainer` pada class `Application` (tanpa Hilt / Koin).
-- **Navigasi**: Jetpack Navigation Compose (string routes).
+Di era modern, ruang hunian kita dipenuhi oleh berbagai perangkat elektromagnetik: transformator catu daya laptop, kompor induksi, motor kompresor pendingin, pengisi daya nirkabel (*wireless charger*), dan kabel daya berarus bolak-balik. Sebagian perangkat memancarkan fluks medan magnet lokal yang cukup kuat di sekitarnya.
+
+Aplikasi **DETEKTIF KAMAR** mengubah smartphone menjadi alat ukur ilmiah (*Gaussmeter/EMF Surveyor*) mandiri tanpa memerlukan alat laboratorium khusus bernilai jutaan rupiah. Pengguna dapat:
+- Mengetahui kekuatan medan magnet ($\mu\text{T}$) di titik-titik krusial kamar (misalnya bantal kasur tidur atau area kerja).
+- Memetakan titik ukur pada denah kamar.
+- Mengidentifikasi sumber medan anomali melalui katalog referensi perangkat elektronik yang berbasis literatur fisika resmi.
 
 ---
 
-## 📡 Sensor yang Digunakan
+## 2. Fitur Utama
 
-Aplikasi memanfaatkan 3 sensor fisik dari 3 kategori Android Sensor Hardware yang berbeda:
-
-| Kategori Sensor | Tipe Sensor Android | Fungsi dalam Aplikasi Detektif Kamar |
-| :--- | :--- | :--- |
-| **POSITION** | `Sensor.TYPE_MAGNETIC_FIELD` | Mengukur fluks medan magnet total $\sqrt{x^2 + y^2 + z^2}$ dalam mikrotesla (µT) yang invarian terhadap orientasi HP; menghitung arah hadap kompas (azimuth) bersama akselerometer; memantau akurasi kalibrasi sensor; mendeteksi tren hangat-dingin. |
-| **MOTION** | `Sensor.TYPE_ACCELEROMETER` | Menjadi **gerbang kestabilan** pengukuran (simpangan baku percepatan < 0.25 m/s²); menghitung kemiringan fisis (*tilt*) HP untuk komponen *bubble level* (waterpass); memvalidasi apakah sudut azimuth layak dicatat (kemiringan < 45°). |
-| **ENVIRONMENT** | `Sensor.TYPE_LIGHT` | Mencatat intensitas cahaya ruangan (lux) di setiap titik bukti untuk membuat lapisan peta sekunder (Peta Cahaya) guna mengkorelasikan tingkat pencahayaan dengan gangguan magnetik. Ditangani secara anggun (*null-safe*) jika perangkat tidak memiliki sensor cahaya. |
+1. **Pindai Medan Langsung (Live Scanner)**:
+   - Gauge analog lengkung 240° dengan jarum beranimasi pegas halus (*spring damping ratio 0.75*).
+   - Penanda visual garis referensi fluks medan geomagnetik alami bumi ($25 - 65\ \mu\text{T}$).
+   - Animasi garis pemindai (*scanner radar line*) di latar gauge.
+   - Pembacaan digital angka besar dengan font monospace lebar tetap (*fixed width*) agar tidak goyang.
+   - Toggle satuan instan: Mikrotesla ($\mu\text{T}$), Militesla ($\text{mT}$), dan Gauss ($\text{G}$).
+   - Penguraian vektor 3-sumbu ($B_x, B_y, B_z$) dalam horizontal bar simetris.
+   - Grafik jejak osiloskop 10 detik dengan gradasi transparan di bawah kurva ($< 15\%$ opacity).
+   - Kartu statistik sesi: Minimum, Rata-rata, dan Maksimum.
+   - Tombol **Bekukan (Freeze)** untuk menahan nilai pengukuran di titik tertentu.
+   - Deteksi kemiringan ponsel dari akselerometer dengan peringatan *"Pegang ponsel mendatar"*.
+   - Badge status dinamis: `NORMAL`, `SEDANG`, `TINGGI`, `SANGAT TINGGI`, `SATURASI`.
+   - Tombol cepat simpan ke titik ruangan via Modal Bottom Sheet.
+2. **Pemetaan Ruangan (Berkas Kasus Ruangan)**:
+   - Pembuatan dan manajemen ruangan dengan tipe (Kamar Tidur, Ruang Kerja, Dapur, Ruang Tamu, Lainnya).
+   - Pengaturan dimensi panjang dan lebar dalam meter.
+   - Kartu padat berornamen crosshair teknis dengan kode identifikasi kasus (misal: `KASUS #001 · KAMAR TIDUR`).
+3. **Detail Ruangan & Peta Titik Denah**:
+   - Peta denah kotak 2D dengan titik ukur berkilau interaktif per status warna.
+   - Grafik batang komparasi intensitas antar titik ukur dalam satu ruangan.
+   - Ringkasan rata-rata, nilai puncak, dan jumlah titik ukur.
+4. **Kalibrasi Magnetometer 15 Detik**:
+   - Sesi gerakan angka 8 (*3D figure-8 motion*) selama 15 detik dengan progress ring melingkar.
+   - Estimasi offset bias hard-iron ($B_x, B_y, B_z$) dan skor kualitas (*Baik*, *Cukup*, *Ulangi*).
+   - Penyimpanan bias kalibrasi ke database lokal dan teraplikasi secara transparan ke sensor.
+5. **Riwayat Pengukuran & Ekspor CSV**:
+   - Filter chip horizontal scrollable per ruangan dan per kategori status.
+   - Pengelompokan data per hari ("Hari Ini", "Kemarin", tanggal kalender).
+   - Hapus titik dengan konfirmasi dan fitur **Undo (Urungkan)** via Snackbar.
+   - **Ekspor Data ke CSV** standar RFC 4180 melalui Storage Access Framework (SAF) tanpa izin penyimpanan umum/berbahaya.
+6. **Katalog Referensi Sumber Medan (26 Perangkat Terverifikasi)**:
+   - Katalog perangkat rumah tangga dengan rentang $\mu\text{T}$ tipikal, jarak pengukuran, prinsip fisika timbulnya medan magnet, catatan keamanan, dan indikasi saturasi sensor.
+   - Pencarian real-time dan filter kategori: Elektronik, Audio, Dapur, Kabel dan Listrik, Struktur Bangunan, Lainnya.
+   - Kartu proporsional dan dialog detail komprehensif.
+7. **Pengaturan & Keandalan**:
+   - Pilihan satuan default ($\mu\text{T}$, $\text{mT}$, $\text{G}$).
+   - Pilihan tema (Ikuti Sistem, Terang, Gelap).
+   - Mode Simulasi Sensor untuk pengujian di Emulator Android.
+   - Fitur Reset Data dengan konfirmasi ganda.
 
 ---
 
-## 🗄️ Skema Database SQLite
+## 3. Teknologi yang Digunakan
 
-Database lokal murni menggunakan `detektif_kamar.db` (versi 1) dengan *Foreign Key Constraints* aktif:
+| Komponen | Spesifikasi & Alasan Pemilihan |
+| :--- | :--- |
+| **Bahasa Pemrograman** | **Kotlin 2.0.20** (modern, ekspresif, type-safe, null-safety). |
+| **UI Toolkit** | **Jetpack Compose (BOM 2024.09.03) + Material 3** sebagai fondasi, dengan custom styling token, Canvas custom, dan tipografi khusus. |
+| **Pola Arsitektur** | **MVVM (Model-View-ViewModel) + Clean Architecture**. Pemisahan ketat antara domain (logika murni), data (database & sensor), dan UI (Composable + UiState). |
+| **State Management** | **Kotlin Coroutines 1.8.1 & StateFlow**. Single immutable UiState per layar, dikonsumsi via `collectAsStateWithLifecycle()`. |
+| **Database** | **SQLite murni (SQLiteOpenHelper)** dengan versi migrasi terstruktur (`onUpgrade`). Alasan: membuktikan penguasaan native SQL, DDL, agregasi JOIN, dan transaksi kaskade tanpa layer abstraksi ORM pihak ketiga. |
+| **Reaktivitas DB** | **DatabaseChangeNotifier** berbasis `MutableStateFlow` yang memicu pembaruan Flow secara otomatis saat terjadi operasi tulis (`INSERT`/`UPDATE`/`DELETE`). |
+| **Preferensi** | **SharedPreferences** untuk menyimpan preferensi satuan, tema tampilan, haptik, dan flag panduan. |
+| **Dependency Injection** | **Manual DI (AppContainer)** tingkat `Application` tanpa framework eksternal (Hilt/Koin), menjaga ukuran biner kecil dan kompilasi cepat. |
+| **Build System** | Gradle 8.7, AGP 8.5.2, minSdk 26 (Java 8/Time API native tanpa desugaring), targetSdk 34, compileSdk 34. |
+| **Keamanan R8** | Lulus build release dengan `isMinifyEnabled = true` dan ProGuard rules terkonfigurasi. |
 
-```text
-+--------------------+       1:N       +-------------------+
-| investigation_case |<----------------|     furniture     |
-+--------------------+                 +-------------------+
-          |
-          | 1:N
-          v
-+--------------------+       1:N       +-------------------+
-|   evidence_point   |<----------------|      reading      |
-+--------------------+                 +-------------------+
-          |
-          | N:M (via point_suspect)
-          v
-+--------------------+
-|  suspect_catalog   |
-+--------------------+
+---
+
+## 4. Sensor Fisik yang Digunakan
+
+Aplikasi menggunakan kombinasi sensor perangkat keras asli Android:
+
+| Sensor Android | Tipe Sensor | Fungsi Nyata di Aplikasi | Sumber Data | Batasan Fisika Hardware |
+| :--- | :--- | :--- | :--- | :--- |
+| **Magnetometer** | `Sensor.TYPE_MAGNETIC_FIELD` | Mengukur fluks medan magnet 3-sumbu ($B_x, B_y, B_z$) dan magnitudo total $\|B\| = \sqrt{x^2 + y^2 + z^2}$ dalam $\mu\text{T}$. | `SensorEvent.values[0..2]` | Terdistorsi oleh material feromagnetik ponsel (baut, speaker, casing magnetik), serta saturasi jika medan melebihi `sensor.maximumRange`. |
+| **Akselerometer** | `Sensor.TYPE_ACCELEROMETER` | Menghitung sudut kemiringan total ponsel (*tilt angle*) terhadap vektor gravitasi bumi ($9.81\ \text{m/s}^2$). | `SensorEvent.values[0..2]` | Memberikan peringatan *"Pegang ponsel mendatar"* saat sudut kemiringan $> 45^\circ$ agar pengukuran konsisten pada bidang horizontal. |
+| **Sensor Cahaya (Ambient Light)** | `Sensor.TYPE_LIGHT` | Mengukur tingkat pencahayaan kamar dalam satuan Lux untuk korelasi kondisi ruangan. | `SensorEvent.values[0]` | Opsional; jika perangkat tidak memiliki sensor cahaya, aplikasi tetap berjalan normal dengan fallback nilai `null`. |
+
+---
+
+## 5. Diagram Arsitektur Aplikasi
+
+```
++-----------------------------------------------------------------------------------+
+|                                 PRESENTATION LAYER                                |
+|                                                                                   |
+|  [HomeRoomsScreen]      [LiveScanScreen]     [ReferenceCatalog]   [HistoryScreen] |
+|         ^                      ^                     ^                   ^        |
+|         |                      |                     |                   |        |
+|  (HomeRoomsViewModel)  (LiveScanViewModel)  (CatalogViewModel)   (HistoryViewModel)|
+|                                                                                   |
+|                      UI STATE (StateFlow<UiState> Immutable)                      |
+|                           Unidirectional Data Flow (UDF)                          |
++------------------------------------------+----------------------------------------+
+                                           |
+                                           v
++------------------------------------------+----------------------------------------+
+|                                    DOMAIN LAYER                                   |
+|                                                                                   |
+|  Logika Murni (Pure Kotlin):                                                      |
+|   - UnitConverter (µT <-> mT <-> Gauss)                                           |
+|   - MagneticClassifier (NORMAL, SEDANG, TINGGI, SANGAT TINGGI, SATURASI)          |
+|   - TiltDetector (vektor gravitasi akselerometer -> tilt angle)                   |
+|   - CalibrationCalculator (estimasi hard-iron offset & kualitas)                  |
+|   - CsvExporter (RFC 4180 serialization)                                          |
+|                                                                                   |
+|  Repository Interfaces:                                                           |
+|   - RoomRepository, MeasurementRepository, CalibrationRepository, ...            |
++------------------------------------------+----------------------------------------+
+                                           |
+                                           v
++------------------------------------------+----------------------------------------+
+|                                     DATA LAYER                                    |
+|                                                                                   |
+|       Repository Implementations (RoomRepoImpl, MeasurementRepoImpl, ...)         |
+|                          ^                                    ^                   |
+|                          |                                    |                   |
+|         +----------------+---------------+   +----------------+---------------+   |
+|         |    LOCAL DATA SOURCE (SQLite)  |   |      SENSOR DATA SOURCE        |   |
+|         |                                |   |                                |   |
+|         | - DetektifDbHelper             |   | - RealSensorSource             |   |
+|         |   (SQLiteOpenHelper native)    |   |   (SensorManager callbacks)    |   |
+|         | - RoomDao, MeasurementDao      |   | - SimulationSensorSource       |   |
+|         | - CalibrationDao, CatalogDao   |   | - CalibrationEngine            |   |
+|         | - DatabaseChangeNotifier       |   | - Low-pass filter (alpha=0.15) |   |
+|         +--------------------------------+   +--------------------------------+   |
++-----------------------------------------------------------------------------------+
 ```
 
-### Rincian Tabel:
-1. `investigation_case`: Berkas kasus TKP (`id`, `title`, `room_type`, `width_m`, `length_m`, `note`, `baseline_ut`, `created_at`, `updated_at`).
-2. `furniture`: Perabot di denah (`id`, `case_id` FK CASCADE, `label`, `kind`, `x_m`, `y_m`, `w_m`, `h_m`).
-3. `evidence_point`: Titik bukti pengukuran (`id`, `case_id` FK CASCADE, `label`, `x_m`, `y_m`, `note`, `created_at`).
-4. `reading`: Riwayat pembacaan sensor pada titik (`id`, `point_id` FK CASCADE, `mean_ut`, `min_ut`, `max_ut`, `std_ut`, `bx`, `by`, `bz`, `lux_mean`, `azimuth_deg`, `tilt_deg`, `accuracy`, `quality`, `sample_count`, `measured_at`).
-5. `suspect_catalog`: Katalog tersangka gangguan (`id`, `name`, `category`, `typical_min_ut`, `typical_max_ut`, `typical_distance_cm`, `note`, `how_to_confirm`).
-6. `point_suspect`: Tabel relasi relasi titik dengan tersangka (`point_id` FK CASCADE, `suspect_id` FK CASCADE, `custom_label`).
+---
+
+## 6. Tinjauan Antarmuka (Layar Utama)
+
+| Layar | Deskripsi & Komponen Kunci |
+| :--- | :--- |
+| **A. Pemetaan Ruangan (Beranda)** | Kartu padat berornamen crosshair teknis, kode berkas kasus (`KASUS #001 · KAMAR TIDUR`), jumlah titik ukur, status cap karet miring, dan FAB Tambah Ruangan. |
+| **B. Tambah / Edit Ruangan** | Formulir validasi nama (maks 40 karakter dengan counter), chip seleksi tipe ruangan, input dimensi meter (lebar x panjang), dan catatan. |
+| **C. Pindai Medan Langsung** | Gauge analog lengkung 240° dengan animasi spring, pembacaan digital monospace besar, grafik sinyal osiloskop 10 detik, bar vektor X/Y/Z, kartu statistik sesi, banner tilt warning, dan tombol bekukan. |
+| **D. Kalibrasi Magnetik** | Panduan gerakan angka 8 selama 15 detik dengan countdown timer, visualisasi sampel 3D real-time, peringatan pengaruh casing magnet MagSafe, dan estimasi offset bias hard-iron. |
+| **E. Riwayat Pengukuran** | Filter chip horizontal per ruangan & status, pengelompokan hari ("Hari Ini", "Kemarin"), swipe to delete dengan Undo Snackbar, dan ekspor CSV via Storage Access Framework. |
+| **F. Detail Ruangan** | Ringkasan intensitas medan, canvas denah kotak interaktif berskala dengan titik-titik pengukuran, dan grafik batang intensitas antar titik. |
+| **G. Katalog Referensi Perangkat** | 26 entri sumber medan elektromagnetik, pencarian real-time, filter kategori (Elektronik, Audio, Dapur, Kabel, Struktur, Lainnya), kartu proporsional, dan dialog detail fisika induksi. |
+| **H. Pengaturan & Tentang** | Toggle satuan default ($\mu\text{T}$, $\text{mT}$, $\text{G}$), tema tampilan, haptik getar, mode simulasi sensor untuk emulator, dan tombol reset seluruh database. |
 
 ---
 
-## 📸 Tangkapan Layar (Screenshots)
+## 7. Panduan Menjalankan Aplikasi
 
-Letakkan tangkapan layar pengujian pada folder `docs/screenshots/`:
+### Kebutuhan Lingkungan:
+- **Android Studio**: Android Studio Koala / Ladybug / Jellyfish (disarankan versi 2024.1+).
+- **JDK**: JDK 17 (misalnya JetBrains Runtime / OpenJDK 17).
+- **Perangkat Uji**: Smartphone fisik Android (minSdk 26 / Android 8.0 Oreo ke atas) dengan sensor magnetometer terpasang, atau Emulator Android dengan Virtual Sensors aktif.
 
-| 1. Daftar Kasus (Map Berkas) | 2. Denah & Peta Panas IDW | 3. Pengambilan Bukti |
-| :---: | :---: | :---: |
-| ![Kasus](docs/screenshots/01_kasus.png) | ![Denah](docs/screenshots/02_denah_heatmap.png) | ![Ukur](docs/screenshots/03_ukur_titik.png) |
+### Langkah Build & Instalasi:
 
-| 4. Mode Selidik Langsung | 5. Detail Titik & Tersangka | 6. Mode Gelap (Lab Room) |
-| :---: | :---: | :---: |
-| ![Selidik](docs/screenshots/04_selidik.png) | ![Detail](docs/screenshots/05_detail_titik.png) | ![Dark Mode](docs/screenshots/06_dark_mode.png) |
-
----
-
-## 🚀 Cara Menjalankan
-
-1. **Kebutuhan Sistem**:
-   - **Android Studio**: Android Studio Koala (2024.1.1) atau Ladybug (2024.2.1)
-   - **JDK**: Java Development Kit 17 (JDK 17)
-   - **Perangkat**: HP fisik Android (minSdk 26 / Android 8.0 Oreo ke atas) sangat direkomendasikan agar pembacaan sensor magnetometer dan akselerometer nyata.
-2. **Menjalankan di Emulator Android**:
-   - Jika menggunakan emulator, buka *Extended Controls* (`...`) $\rightarrow$ *Virtual sensors* untuk memanipulasi nilai medan magnet.
-   - Atau aktifkan **Mode Simulasi Sensor** di layar *Pengaturan* aplikasi.
-3. **Build & Install**:
-   ```bash
-   # Masuk ke folder proyek
-   cd DetektifKamar
-
-   # Kompilasi & Jalankan Unit Test
+1. **Clone atau Buka Proyek**:
+   Buka folder proyek `DetektifKamar` di Android Studio.
+2. **Jalankan Unit Test**:
+   ```powershell
    ./gradlew testDebugUnitTest
-
-   # Build APK Debug
+   ```
+   *(Seluruh pengujian unit test pada logika matematika, klasifikasi, konversi satuan, dan kalibrasi akan dieksekusi)*.
+3. **Build APK Debug**:
+   ```powershell
    ./gradlew assembleDebug
    ```
-   File APK hasil build berada di:
-   `app/build/outputs/apk/debug/app-debug.apk`
+   File biner APK dihasilkan di: `app/build/outputs/apk/debug/app-debug.apk`.
+4. **Build APK Release (Minified)**:
+   ```powershell
+   ./gradlew assembleRelease
+   ```
+   File biner APK teroptimasi dihasilkan di: `app/build/outputs/apk/release/app-release.apk`.
+5. **Instalasi ke Perangkat**:
+   Hubungkan smartphone dengan mode USB Debugging aktif, lalu jalankan:
+   ```powershell
+   adb install app/build/outputs/apk/debug/app-debug.apk
+   ```
 
 ---
 
-## ⚠️ Keterbatasan
+## 8. Keterbatasan Fisika & Sensor Smartphone
 
-1. **Akurasi Magnetometer**: Sensor magnetometer pada ponsel cerdas rentan terpengaruh oleh magnet casing MagSafe, gesper jam tangan, atau komponen internal ponsel saat panas. Lakukan kalibrasi gerakan angka 8 sebelum mengukur.
-2. **Karakteristik Tersangka**: Nilai pada katalog tersangka merupakan estimasi tipikal empiris untuk keperluan edukasi dan penyelidikan amatir; nilai riil bergantung pada merk, daya watt, dan pelindung ferit masing-masing perangkat.
-3. **Sensor Cahaya**: Beberapa tablet atau tipe ponsel kelas pemula tidak menyertakan sensor cahaya fisik (`TYPE_LIGHT`). Jika tidak tersedia, lapisan Peta Cahaya dinonaktifkan secara otomatis tanpa mengganggu fungsi medan magnet.
+1. **Pengaruh Bahan Feromagnetik Internal & Eksternal**:
+   - Magnetometer smartphone mengukur total rapat fluks magnetik lokal. Bodi logam ponsel, modul kamera magnetik, speaker internal, dan terutama **casing dengan cincin magnetik (seperti casing MagSafe)** akan mendistorsi pembacaan secara konstan. Pengguna disarankan melepas casing tebal saat melakukan survei ruangan.
+2. **Saturasi Sensor**:
+   - Sensor magnetometer smartphone memiliki jangkauan pembacaan maksimum (`sensor.maximumRange`, umumnya berkisar $1.000 - 2.000\ \mu\text{T}$). Jika didekatkan langsung ke magnet permanen kuat (seperti magnet neodymium atau motor trafo besar), sensor akan mengalami kejenuhan (*saturasi*). Aplikasi menangani kondisi ini dengan menampilkan status `SATURASI`.
+3. **Pergeseran Bias (*Hard-Iron Distortion*)**:
+   - Komponen logam permanen pada sirkuit ponsel menyebabkan pergeseran titik nol (*zero-offset bias*). Sesi kalibrasi gerakan angka 8 disediakan untuk memperkirakan dan mengurangi offset ini dari data mentah sensor.
+4. **Data Katalog adalah Nilai Tipikal**:
+   - Angka emisi pada Katalog Referensi merupakan rentang tipikal yang diambil dari literatur ilmiah pada jarak tertentu. Fluks magnetik nyata sangat dipengaruhi oleh daya beban perangkat, kualitas pelindung kabel (*shielding*), dan jarak ($1/r^3$).
 
 ---
 
-## 📦 Panduan Pengunggahan ke GitHub
+## 9. Sumber Rujukan Ilmiah Terverifikasi
 
-1. **Inisialisasi Repositori Git**:
-   ```bash
-   git init
-   git add .
-   git commit -m "feat: inisialisasi lengkap aplikasi Detektif Kamar siap build"
-   git branch -M main
-   ```
-2. **Hubungkan ke Remote GitHub (Pastikan Repositori Dibuat PUBLIC)**:
-   ```bash
-   git remote add origin https://github.com/<username-kamu>/DetektifKamar.git
-   git push -u origin main
-   ```
-3. **Checklist Sebelum Pengumpulan Tugas**:
-   - [x] Repositori disetel ke **Public** (dapat diakses tanpa login).
-   - [x] Build Gradle sukses (`./gradlew assembleDebug` lulus).
-   - [x] Seluruh unit test lokal lolos (`./gradlew testDebugUnitTest` lulus).
-   - [x] Tidak ada file temporary atau folder `build/` yang ter-commit (terfilter oleh `.gitignore`).
-   - [x] Tangkapan layar dimasukkan ke `docs/screenshots/`.
+Nilai batas ambang dan rentang fluks medan magnet dalam aplikasi ini didasarkan pada literatur ilmiah dan panduan keselamatan elektromagnetik resmi:
+
+1. **World Health Organization (WHO)**:
+   - *WHO Environmental Health Criteria 238: Extremely Low Frequency Fields* (2007).
+   - Membahas paparan medan magnet bolak-balik frekuensi rendah ($50/60\text{ Hz}$) pada perangkat rumah tangga dan pedoman batas paparan konsumen.
+2. **International Commission on Non-Ionizing Radiation Protection (ICNIRP)**:
+   - *ICNIRP Guidelines for Limiting Exposure to Time-Varying Electric and Magnetic Fields (1 Hz - 100 kHz)*, Health Physics 99(6):818-836 (2010).
+   - Menetapkan batas referensi medan magnet untuk keselamatan masyarakat umum.
+3. **U.S. Geological Survey (USGS)**:
+   - *USGS Geomagnetism Program: Surface Magnetic Field Surveys & Global Field Models*.
+   - Rujukan standar fluks medan geomagnetik alami permukaan bumi ($25 - 65\ \mu\text{T}$ tergantung lintang geografis).
+4. **IEEE Standards Association**:
+   - *IEEE Std C95.6: Safety Levels with Respect to Human Exposure to Electromagnetic Fields (0 to 3 kHz)*.
+   - Analisis medan magnet di sekitar transformator step-down, motor listrik induksi, dan instalasi kabel hunian.

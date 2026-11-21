@@ -1,9 +1,6 @@
 package com.detektifkamar.app.ui.navigation
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -13,9 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,29 +22,26 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.detektifkamar.app.R
 import com.detektifkamar.app.appContainer
 import com.detektifkamar.app.ui.components.DetectiveIcons
-import com.detektifkamar.app.ui.screens.arsip.ArsipScreen
-import com.detektifkamar.app.ui.screens.arsip.ArsipViewModel
-import com.detektifkamar.app.ui.screens.detailkasus.DetailKasusScreen
-import com.detektifkamar.app.ui.screens.detailkasus.DetailKasusViewModel
-import com.detektifkamar.app.ui.screens.detailtitik.DetailTitikScreen
-import com.detektifkamar.app.ui.screens.detailtitik.DetailTitikViewModel
-import com.detektifkamar.app.ui.screens.formkasus.FormKasusScreen
-import com.detektifkamar.app.ui.screens.formkasus.FormKasusViewModel
-import com.detektifkamar.app.ui.screens.kasus.KasusScreen
-import com.detektifkamar.app.ui.screens.kasus.KasusViewModel
-import com.detektifkamar.app.ui.screens.pengaturan.PengaturanScreen
-import com.detektifkamar.app.ui.screens.pengaturan.PengaturanViewModel
-import com.detektifkamar.app.ui.screens.selidik.SelidikScreen
-import com.detektifkamar.app.ui.screens.selidik.SelidikViewModel
-import com.detektifkamar.app.ui.screens.tersangka.TersangkaScreen
-import com.detektifkamar.app.ui.screens.tersangka.TersangkaViewModel
-import com.detektifkamar.app.ui.screens.ukurtitik.UkurTitikScreen
-import com.detektifkamar.app.ui.screens.ukurtitik.UkurTitikViewModel
+import com.detektifkamar.app.ui.screens.calibration.CalibrationScreen
+import com.detektifkamar.app.ui.screens.calibration.CalibrationViewModel
+import com.detektifkamar.app.ui.screens.catalog.ReferenceCatalogScreen
+import com.detektifkamar.app.ui.screens.catalog.ReferenceCatalogViewModel
+import com.detektifkamar.app.ui.screens.history.HistoryScreen
+import com.detektifkamar.app.ui.screens.history.HistoryViewModel
+import com.detektifkamar.app.ui.screens.homerooms.HomeRoomsScreen
+import com.detektifkamar.app.ui.screens.homerooms.HomeRoomsViewModel
+import com.detektifkamar.app.ui.screens.livescan.LiveScanScreen
+import com.detektifkamar.app.ui.screens.livescan.LiveScanViewModel
+import com.detektifkamar.app.ui.screens.roomdetail.RoomDetailScreen
+import com.detektifkamar.app.ui.screens.roomdetail.RoomDetailViewModel
+import com.detektifkamar.app.ui.screens.roomform.RoomFormScreen
+import com.detektifkamar.app.ui.screens.roomform.RoomFormViewModel
+import com.detektifkamar.app.ui.screens.settings.SettingsScreen
+import com.detektifkamar.app.ui.screens.settings.SettingsViewModel
 import com.detektifkamar.app.ui.theme.DetectiveTheme
-import com.detektifkamar.app.ui.theme.IbmPlexSansFamily
+import com.detektifkamar.app.ui.theme.PlexSansFontFamily
 
 @Composable
 fun AppNavHost(modifier: Modifier = Modifier) {
@@ -62,10 +54,10 @@ fun AppNavHost(modifier: Modifier = Modifier) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     val bottomNavItems = listOf(
-        Triple(Screen.Kasus.route, stringResource(R.string.nav_ruangan), DetectiveIcons.Kasus),
-        Triple(Screen.Selidik.route, stringResource(R.string.nav_pindai), DetectiveIcons.Selidik),
-        Triple(Screen.Arsip.route, stringResource(R.string.nav_riwayat), DetectiveIcons.Arsip),
-        Triple(Screen.Tersangka.route, stringResource(R.string.nav_referensi), DetectiveIcons.Tersangka)
+        Triple(Screen.HomeRooms.route, "Ruangan", DetectiveIcons.Kasus),
+        Triple(Screen.LiveScan.route, "Pindai", DetectiveIcons.Selidik),
+        Triple(Screen.Catalog.route, "Referensi", DetectiveIcons.Tersangka),
+        Triple(Screen.History.route, "Riwayat", DetectiveIcons.Arsip)
     )
 
     val showBottomBar = bottomNavItems.any { it.first == currentRoute }
@@ -95,20 +87,20 @@ fun AppNavHost(modifier: Modifier = Modifier) {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = label,
-                                    tint = if (selected) colors.cyanotypeBlue else colors.textMuted
+                                    tint = if (selected) colors.accentCyan else colors.textMuted
                                 )
                             },
                             label = {
                                 Text(
                                     text = label,
-                                    fontFamily = IbmPlexSansFamily,
+                                    fontFamily = PlexSansFontFamily,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                                     fontSize = 11.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) colors.cyanotypeBlue else colors.textMuted
+                                    color = if (selected) colors.accentCyan else colors.textMuted
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Color.Transparent
+                                indicatorColor = colors.accentCyan.copy(alpha = 0.12f)
                             )
                         )
                     }
@@ -118,171 +110,135 @@ fun AppNavHost(modifier: Modifier = Modifier) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Kasus.route,
-            modifier = Modifier.padding(innerPadding)
+            startDestination = Screen.HomeRooms.route
         ) {
-            // TAB 1: RUANGAN
-            composable(Screen.Kasus.route) {
-                val vm: KasusViewModel = viewModel(
-                    factory = KasusViewModel.provideFactory(
-                        container.caseRepository,
-                        container.preferencesRepository
-                    )
-                )
-                KasusScreen(
+            // Tab 1: Pemetaan Ruangan / Beranda
+            composable(Screen.HomeRooms.route) {
+                val vm: HomeRoomsViewModel = viewModel {
+                    HomeRoomsViewModel(container.roomRepository)
+                }
+                HomeRoomsScreen(
                     viewModel = vm,
-                    onNavigateToNewCase = { navController.navigate(Screen.FormKasus.createRoute()) },
-                    onNavigateToDetailCase = { caseId -> navController.navigate(Screen.DetailKasus.createRoute(caseId)) },
-                    onNavigateToSettings = { navController.navigate(Screen.Pengaturan.route) }
+                    onNavigateToRoomDetail = { roomId ->
+                        navController.navigate(Screen.RoomDetail.createRoute(roomId))
+                    },
+                    onNavigateToCreateRoom = {
+                        navController.navigate(Screen.RoomForm.createRoute())
+                    },
+                    onNavigateToCalibration = {
+                        navController.navigate(Screen.Calibration.route)
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route)
+                    }
                 )
             }
 
-            // FORM RUANGAN
-            composable(
-                route = Screen.FormKasus.route,
-                arguments = listOf(navArgument("caseId") { type = NavType.StringType; defaultValue = "0" })
-            ) { backStackEntry ->
-                val vm: FormKasusViewModel = viewModel(
-                    factory = FormKasusViewModel.provideFactory(
-                        container.caseRepository,
-                        backStackEntry.savedStateHandle
+            // Tab 2: Pindai Medan Langsung
+            composable(Screen.LiveScan.route) {
+                val vm: LiveScanViewModel = viewModel {
+                    LiveScanViewModel(
+                        sensorRepository = container.sensorRepository,
+                        roomRepository = container.roomRepository,
+                        measurementRepository = container.measurementRepository,
+                        preferencesRepository = container.preferencesRepository,
+                        vibratorHelper = container.vibratorHelper
                     )
+                }
+                LiveScanScreen(
+                    viewModel = vm,
+                    onNavigateToCreateRoom = {
+                        navController.navigate(Screen.RoomForm.createRoute())
+                    }
                 )
-                FormKasusScreen(
+            }
+
+            // Tab 3: Katalog Referensi Perangkat
+            composable(Screen.Catalog.route) {
+                val vm: ReferenceCatalogViewModel = viewModel {
+                    ReferenceCatalogViewModel(container.deviceReferenceRepository)
+                }
+                ReferenceCatalogScreen(viewModel = vm)
+            }
+
+            // Tab 4: Riwayat Pengukuran
+            composable(Screen.History.route) {
+                val vm: HistoryViewModel = viewModel {
+                    HistoryViewModel(
+                        measurementRepository = container.measurementRepository,
+                        roomRepository = container.roomRepository
+                    )
+                }
+                HistoryScreen(viewModel = vm)
+            }
+
+            // Layar D: Kalibrasi Magnetik 15 Detik
+            composable(Screen.Calibration.route) {
+                val vm: CalibrationViewModel = viewModel {
+                    CalibrationViewModel(
+                        sensorRepository = container.sensorRepository,
+                        calibrationRepository = container.calibrationRepository
+                    )
+                }
+                CalibrationScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            // DETAIL RUANGAN
+            // Layar B: Form Ruangan (Tambah / Edit)
             composable(
-                route = Screen.DetailKasus.route,
-                arguments = listOf(navArgument("caseId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val caseId = backStackEntry.arguments?.getLong("caseId") ?: 0L
-                val vm: DetailKasusViewModel = viewModel(
-                    factory = DetailKasusViewModel.provideFactory(
-                        caseId,
-                        container.caseRepository,
-                        container.suspectRepository,
-                        container.preferencesRepository
-                    )
+                route = Screen.RoomForm.route,
+                arguments = listOf(
+                    navArgument("roomId") {
+                        type = NavType.LongType
+                        defaultValue = 0L
+                    }
                 )
-                DetailKasusScreen(
+            ) { backStackEntry ->
+                val roomId = backStackEntry.arguments?.getLong("roomId") ?: 0L
+                val vm: RoomFormViewModel = viewModel {
+                    RoomFormViewModel(container.roomRepository, roomId)
+                }
+                RoomFormScreen(
+                    viewModel = vm,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Layar F: Detail Ruangan
+            composable(
+                route = Screen.RoomDetail.route,
+                arguments = listOf(
+                    navArgument("roomId") { type = NavType.LongType }
+                )
+            ) { backStackEntry ->
+                val roomId = backStackEntry.arguments?.getLong("roomId") ?: 0L
+                val vm: RoomDetailViewModel = viewModel {
+                    RoomDetailViewModel(
+                        roomId = roomId,
+                        roomRepository = container.roomRepository,
+                        measurementRepository = container.measurementRepository
+                    )
+                }
+                RoomDetailScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToUkur = { cid, pid, isBase, x, y, label ->
-                        navController.navigate(Screen.UkurTitik.createRoute(cid, pid, isBase, x, y, label))
+                    onNavigateToEditRoom = { id ->
+                        navController.navigate(Screen.RoomForm.createRoute(id))
                     },
-                    onNavigateToPointDetail = { pid ->
-                        navController.navigate(Screen.DetailTitik.createRoute(pid))
+                    onNavigateToScan = {
+                        navController.navigate(Screen.LiveScan.route)
                     }
                 )
             }
 
-            // UKUR TITIK RUANGAN
-            composable(
-                route = Screen.UkurTitik.route,
-                arguments = listOf(
-                    navArgument("caseId") { type = NavType.LongType },
-                    navArgument("pointId") { type = NavType.LongType; defaultValue = 0L },
-                    navArgument("isBaseline") { type = NavType.BoolType; defaultValue = false },
-                    navArgument("x") { type = NavType.FloatType; defaultValue = 0f },
-                    navArgument("y") { type = NavType.FloatType; defaultValue = 0f },
-                    navArgument("label") { type = NavType.StringType; defaultValue = "" }
-                )
-            ) { backStackEntry ->
-                val cid = backStackEntry.arguments?.getLong("caseId") ?: 0L
-                val pid = backStackEntry.arguments?.getLong("pointId") ?: 0L
-                val isBase = backStackEntry.arguments?.getBoolean("isBaseline") ?: false
-                val x = backStackEntry.arguments?.getFloat("x") ?: 0f
-                val y = backStackEntry.arguments?.getFloat("y") ?: 0f
-                val label = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("label") ?: "", "UTF-8")
-
-                val vm: UkurTitikViewModel = viewModel(
-                    factory = UkurTitikViewModel.provideFactory(
-                        cid,
-                        pid,
-                        isBase,
-                        x,
-                        y,
-                        label,
-                        container.caseRepository,
-                        container.sensorRepository,
-                        container.preferencesRepository
-                    )
-                )
-                UkurTitikScreen(
-                    viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            // DETAIL TITIK UKUR
-            composable(
-                route = Screen.DetailTitik.route,
-                arguments = listOf(navArgument("pointId") { type = NavType.LongType })
-            ) { backStackEntry ->
-                val pointId = backStackEntry.arguments?.getLong("pointId") ?: 0L
-                val vm: DetailTitikViewModel = viewModel(
-                    factory = DetailTitikViewModel.provideFactory(
-                        pointId,
-                        container.caseRepository,
-                        container.suspectRepository,
-                        container.preferencesRepository
-                    )
-                )
-                DetailTitikScreen(
-                    viewModel = vm,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
-
-            // TAB 2: PINDAI LANGSUNG
-            composable(Screen.Selidik.route) {
-                val vm: SelidikViewModel = viewModel(
-                    factory = SelidikViewModel.provideFactory(
-                        container.sensorRepository,
-                        container.caseRepository,
-                        container.preferencesRepository,
-                        container.vibratorHelper
-                    )
-                )
-                SelidikScreen(
-                    viewModel = vm,
-                    onNavigateToUkur = { cid ->
-                        navController.navigate(Screen.UkurTitik.createRoute(cid, 0L, false, 0f, 0f, "Titik Pindai"))
-                    }
-                )
-            }
-
-            // TAB 3: RIWAYAT PENGUKURAN
-            composable(Screen.Arsip.route) {
-                val vm: ArsipViewModel = viewModel(
-                    factory = ArsipViewModel.provideFactory(container.caseRepository)
-                )
-                ArsipScreen(
-                    viewModel = vm,
-                    onNavigateToPointDetail = { pid ->
-                        navController.navigate(Screen.DetailTitik.createRoute(pid))
-                    }
-                )
-            }
-
-            // TAB 4: REFERENSI PERANGKAT
-            composable(Screen.Tersangka.route) {
-                val vm: TersangkaViewModel = viewModel(
-                    factory = TersangkaViewModel.provideFactory(container.suspectRepository)
-                )
-                TersangkaScreen(viewModel = vm)
-            }
-
-            // PENGATURAN
-            composable(Screen.Pengaturan.route) {
-                val vm: PengaturanViewModel = viewModel(
-                    factory = PengaturanViewModel.provideFactory(container.preferencesRepository)
-                )
-                PengaturanScreen(
+            // Layar H: Pengaturan & Tentang
+            composable(Screen.Settings.route) {
+                val vm: SettingsViewModel = viewModel {
+                    SettingsViewModel(container.preferencesRepository)
+                }
+                SettingsScreen(
                     viewModel = vm,
                     onNavigateBack = { navController.popBackStack() }
                 )

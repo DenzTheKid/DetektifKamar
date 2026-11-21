@@ -1,35 +1,21 @@
 package com.detektifkamar.app.ui.navigation
 
 sealed class Screen(val route: String) {
-    // 4 Tab Utama
-    object Kasus : Screen("kasus")
-    object Selidik : Screen("selidik")
-    object Tersangka : Screen("tersangka")
-    object Arsip : Screen("arsip")
+    // 4 Tab Utama di Navigasi Bawah
+    object HomeRooms : Screen("ruangan")
+    object LiveScan : Screen("pindai")
+    object Catalog : Screen("referensi")
+    object History : Screen("riwayat")
 
-    // Sub-layar
-    object FormKasus : Screen("form_kasus?caseId={caseId}") {
-        fun createRoute(caseId: Long = 0L) = "form_kasus?caseId=$caseId"
+    // Layar Pendukung / Detail
+    object Calibration : Screen("kalibrasi")
+    object Settings : Screen("pengaturan")
+
+    object RoomDetail : Screen("room_detail/{roomId}") {
+        fun createRoute(roomId: Long) = "room_detail/$roomId"
     }
 
-    object DetailKasus : Screen("detail_kasus/{caseId}") {
-        fun createRoute(caseId: Long) = "detail_kasus/$caseId"
+    object RoomForm : Screen("room_form?roomId={roomId}") {
+        fun createRoute(roomId: Long = 0L) = "room_form?roomId=$roomId"
     }
-
-    object UkurTitik : Screen("ukur_titik/{caseId}?pointId={pointId}&isBaseline={isBaseline}&x={x}&y={y}&label={label}") {
-        fun createRoute(
-            caseId: Long,
-            pointId: Long = 0L,
-            isBaseline: Boolean = false,
-            x: Float = 0f,
-            y: Float = 0f,
-            label: String = ""
-        ) = "ukur_titik/$caseId?pointId=$pointId&isBaseline=$isBaseline&x=$x&y=$y&label=${java.net.URLEncoder.encode(label, "UTF-8")}"
-    }
-
-    object DetailTitik : Screen("detail_titik/{pointId}") {
-        fun createRoute(pointId: Long) = "detail_titik/$pointId"
-    }
-
-    object Pengaturan : Screen("pengaturan")
 }

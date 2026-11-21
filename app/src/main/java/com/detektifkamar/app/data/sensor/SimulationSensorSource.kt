@@ -15,6 +15,10 @@ import kotlin.random.Random
  */
 class SimulationSensorSource : SensorSource {
 
+    override val isMagnetometerAvailable: Boolean = true
+
+    override val sensorMaxRangeUt: Float = 2000f
+
     override val isLightSensorAvailable: Boolean = true
 
     override fun getMagneticFieldFlow(): Flow<RawMagneticData> = flow {

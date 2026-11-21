@@ -19,6 +19,7 @@ import kotlin.math.sqrt
  * Mengimplementasikan praktik terbaik anti-bug sensor Android:
  * - values.copyOf() wajib karena array SensorEvent.values dipakai ulang oleh OS.
  * - conflate() dan unregister saat listener dilepas di awaitClose.
+ * - Mendeteksi ketersediaan magnetometer dan jangkauan maksimum sensor (maximumRange).
  */
 class RealSensorSource(context: Context) : SensorSource {
 
@@ -27,6 +28,12 @@ class RealSensorSource(context: Context) : SensorSource {
     private val magneticSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
     private val accelerometerSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private val lightSensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+
+    override val isMagnetometerAvailable: Boolean
+        get() = magneticSensor != null
+
+    override val sensorMaxRangeUt: Float
+        get() = magneticSensor?.maximumRange ?: 2000f
 
     override val isLightSensorAvailable: Boolean
         get() = lightSensor != null
@@ -87,7 +94,7 @@ class RealSensorSource(context: Context) : SensorSource {
                 val z = values[2]
                 val magnitude = sqrt(x * x + y * y + z * z)
 
-                // Hitung tilt dari rasio sumbu Z terhadap magnitudo gravitasi
+                // Hitung kemiringan kasar sumbu Z terhadap magnitudo gravitasi
                 val cosTilt = if (magnitude > 0.001f) {
                     min(1.0f, max(-1.0f, z / magnitude))
                 } else 1.0f
