@@ -58,6 +58,8 @@ class LiveScanViewModel(
     private var runningCount = 0
     private var sessionMin = Float.MAX_VALUE
     private var sessionMax = 0f
+    private var lastVibrateTime = 0L
+    private var lastVibratedStatus: MagneticStatus? = null
 
     private val _statsFlow = MutableStateFlow(Triple(0f, 0f, 0f)) // min, max, avg
 
@@ -105,11 +107,17 @@ class LiveScanViewModel(
             }
             _historyList.value = _historyWindow.toList()
 
-            // Pulsa getar jika medan magnet mencapai TINGGI atau SANGAT_TINGGI
-            if (rawSensor.status == MagneticStatus.TINGGI || rawSensor.status == MagneticStatus.SANGAT_TINGGI) {
-                if (preferencesRepository.isVibrationEnabled.value) {
+            // Pulsa getar haptik terkendali (hanya bergetar saat masuk batas TINGGI/SANGAT_TINGGI, dibatasi jeda cooldown minimal 3 detik agar tidak getar berlebihan)
+            val now = System.currentTimeMillis()
+            val isHighOrExtreme = (rawSensor.status == MagneticStatus.TINGGI || rawSensor.status == MagneticStatus.SANGAT_TINGGI)
+            if (isHighOrExtreme && preferencesRepository.isVibrationEnabled.value) {
+                if (now - lastVibrateTime >= 3000L) {
                     vibratorHelper.tickPulse()
+                    lastVibrateTime = now
+                    lastVibratedStatus = rawSensor.status
                 }
+            } else if (!isHighOrExtreme) {
+                lastVibratedStatus = rawSensor.status
             }
         }
 

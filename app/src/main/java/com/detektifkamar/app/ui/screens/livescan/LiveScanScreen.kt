@@ -309,7 +309,7 @@ fun LiveScanScreen(
                 onClick = viewModel::openSaveModal,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(50.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.accentCyan,
                     contentColor = colors.paperBackground
@@ -319,18 +319,18 @@ fun LiveScanScreen(
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Simpan ke Titik Ruangan",
                     fontFamily = PlexSansFontFamily,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
+                    fontSize = 15.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(48.dp))
         }
 
         // Modal Bottom Sheet untuk Menyimpan Titik ke Ruangan

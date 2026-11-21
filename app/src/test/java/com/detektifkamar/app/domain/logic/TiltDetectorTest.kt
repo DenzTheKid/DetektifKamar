@@ -36,4 +36,28 @@ class TiltDetectorTest {
         assertTrue(state.tiltAngle > 45f)
         assertTrue(state.isTilted)
     }
+
+    @Test
+    fun testHysteresisPreventsJitterInDeadband() {
+        // 42 degrees tilt: between 38° exit bound and 48° enter bound
+        val ay = 6.56f
+        val az = 7.29f
+        
+        // 1. If previously flat (wasTilted = false), 42° does not trigger tilted
+        val stateWhenFlat = TiltDetector.detectTilt(0f, ay, az, wasTilted = false)
+        assertTrue(stateWhenFlat.tiltAngle in 41f..43f)
+        assertFalse(stateWhenFlat.isTilted)
+
+        // 2. If previously tilted (wasTilted = true), 42° remains tilted until under 38°
+        val stateWhenTilted = TiltDetector.detectTilt(0f, ay, az, wasTilted = true)
+        assertTrue(stateWhenTilted.tiltAngle in 41f..43f)
+        assertTrue(stateWhenTilted.isTilted)
+
+        // 3. When tilt drops below 38° (e.g. ~35°), it safely exits tilted state
+        val ayFlat = 5.63f
+        val azFlat = 8.04f
+        val stateRecovered = TiltDetector.detectTilt(0f, ayFlat, azFlat, wasTilted = true)
+        assertTrue(stateRecovered.tiltAngle < 38f)
+        assertFalse(stateRecovered.isTilted)
+    }
 }

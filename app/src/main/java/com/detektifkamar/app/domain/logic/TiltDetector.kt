@@ -8,17 +8,25 @@ import kotlin.math.sqrt
 
 /**
  * Logika murni untuk mendeteksi sudut kemiringan ponsel dari vektor gravitasi akselerometer.
+ * Dilengkapi dengan filter histeresis (Schmitt Trigger) agar indikator tidak berkedip (jitter)
+ * saat ponsel berada di sekitar ambang batas kemiringan.
  */
 object TiltDetector {
 
     /**
-     * Menghitung sudut kemiringan ponsel (pitch, roll, dan sudut deviasi total dari posisi datar).
+     * Menghitung sudut kemiringan ponsel dengan histeresis anti-jitter.
      *
      * @param ax Percepatan sumbu X (m/s²)
      * @param ay Percepatan sumbu Y (m/s²)
      * @param az Percepatan sumbu Z (m/s²)
+     * @param wasTilted Status kemiringan pada siklus sebelumnya (untuk histeresis)
      */
-    fun detectTilt(ax: Float, ay: Float, az: Float): TiltState {
+    fun detectTilt(
+        ax: Float,
+        ay: Float,
+        az: Float,
+        wasTilted: Boolean = false
+    ): TiltState {
         val norm = sqrt(ax * ax + ay * ay + az * az)
         if (norm < 0.1f) {
             return TiltState()
@@ -33,7 +41,12 @@ object TiltDetector {
         val pitch = Math.toDegrees(atan2(-ax.toDouble(), sqrt((ay * ay + az * az).toDouble()))).toFloat()
         val roll = Math.toDegrees(atan2(ay.toDouble(), az.toDouble())).toFloat()
 
-        val isTilted = tiltAngleDeg > TiltState.MAX_FLAT_ANGLE_DEGREES
+        // Histeresis: Masuk miring jika > 48°, kembali datar hanya jika < 38°
+        val isTilted = if (wasTilted) {
+            tiltAngleDeg > TiltState.TILT_EXIT_DEGREES
+        } else {
+            tiltAngleDeg > TiltState.TILT_ENTER_DEGREES
+        }
 
         return TiltState(
             pitch = pitch,

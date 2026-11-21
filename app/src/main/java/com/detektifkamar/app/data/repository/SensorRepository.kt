@@ -68,6 +68,7 @@ class SensorRepositoryImpl(
         val previousMagWindow = LinkedList<Float>()
         val maxHalfWindowSize = 30
         var currentTrend = HotColdTrend.STABIL
+        var lastTiltedState = false
 
         return combine(
             source.getMagneticFieldFlow(),
@@ -108,8 +109,9 @@ class SensorRepositoryImpl(
             val calZ = filteredMag[2] - biasZ
             val calMagnitude = sqrt(calX * calX + calY * calY + calZ * calZ)
 
-            // 3. Deteksi Kemiringan (TiltDetector) dari Vektor Akselerometer
-            val tiltState = TiltDetector.detectTilt(filteredAccel[0], filteredAccel[1], filteredAccel[2])
+            // 3. Deteksi Kemiringan (TiltDetector) dari Vektor Akselerometer dengan Histeresis Anti-Jitter
+            val tiltState = TiltDetector.detectTilt(filteredAccel[0], filteredAccel[1], filteredAccel[2], lastTiltedState)
+            lastTiltedState = tiltState.isTilted
 
             // 4. Azimuth Kompas (hanya valid jika ponsel mendatar / tilt < 45°)
             var azimuthDeg: Float? = null

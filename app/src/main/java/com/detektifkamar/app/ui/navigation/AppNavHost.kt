@@ -1,6 +1,8 @@
 package com.detektifkamar.app.ui.navigation
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -110,7 +112,10 @@ fun AppNavHost(modifier: Modifier = Modifier) {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.HomeRooms.route
+            startDestination = Screen.HomeRooms.route,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
             // Tab 1: Pemetaan Ruangan / Beranda
             composable(Screen.HomeRooms.route) {
